@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Lock, User as UserIcon, Building2, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { authenticate } from "@/lib/auth-mock"
+import { api } from "@/lib/api"
 
 export default function LoginPage() {
     const [username, setUsername] = React.useState("")
@@ -26,16 +26,19 @@ export default function LoginPage() {
         e.preventDefault()
         setError("")
         setIsLoading(true)
-        await new Promise(resolve => setTimeout(resolve, 800))
-        const user = authenticate(username, password)
 
-        if (user) {
-            router.push(user.redirectPath)
-        } else {
-            setError("Invalid username or password")
+        try {
+            const response = await api.login(username, password)
+            if (response.accessToken) {
+                router.push("/dashboard")
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Invalid username or password")
+        } finally {
             setIsLoading(false)
         }
     }
+
 
     if (showSplash) {
         return (

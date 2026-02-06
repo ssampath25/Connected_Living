@@ -21,7 +21,8 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
     const [name, setName] = useState("")
     const [relation, setRelation] = useState("")
     const [avatar, setAvatar] = useState("")
-    const [type, setType] = useState("")
+    const [type, setType] = useState<"Guest" | "Delivery" | "Cab" | "Staff">("Staff")
+
     const [validUntil, setValidUntil] = useState("")
     const [hasTimeSlot, setHasTimeSlot] = useState(false)
     const [allowedTimeSlot, setAllowedTimeSlot] = useState("Morning (8am-12pm)")

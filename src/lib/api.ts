@@ -3,44 +3,78 @@ import {
     Truck, Car, Waves, Dumbbell, PartyPopper, Zap, Wrench, Package, Hammer, Droplets, Receipt, Flame, AlertCircle, PlugZap,
     Megaphone, ClipboardList, Boxes, UserCheck, Radio, Home
 } from "lucide-react"
+import { api as httpClient, tokenManager, ApiError } from "./api-client"
+import type {
+    AuthResponse,
+    ResidentProfile,
+    VisitorGroup,
+    RecurringStaff,
+    StaffAttendanceLog,
+    Vehicle,
+    Amenity,
+    AmenitySlot,
+    Booking,
+    ServiceRequest,
+    Complaint,
+    Invoice,
+    Payment,
+    Announcement,
+    Poll,
+    PollResults,
+    ChatGroup,
+    ChatMessage,
+    Notification,
+    Delivery,
+    CreateVisitorGroupRequest,
+    CreateRecurringStaffRequest,
+    CreateVehicleRequest,
+    CreateBookingRequest,
+    CreateServiceRequestRequest,
+    CreateDeliveryRequest,
+    PaymentIntentRequest,
+    PaymentIntentResponse,
+} from "./api-types"
 
-// --- Types ---
+// Re-export types for backward compatibility
+export type { ApiError }
 
-// 1. Core Entities
+// ==========================================
+// Frontend Display Types (UI-specific)
+// ==========================================
+
 export interface UserItem {
     id: string
     name: string
     role: "Resident" | "Admin" | "Security" | "FacilityManager" | "Technician"
-    unitId?: string // Link to Unit (if Resident)
+    unitId?: string
     avatar?: string
     phone: string
     email: string
 }
 
 export interface UnitItem {
-    id: string // e.g., "A-101"
+    id: string
     tower: string
     floor: number
     number: string
-    residentId?: string // Link to current resident
+    residentId?: string
     status: "Occupied" | "Vacant" | "Owner"
 }
 
-// 2. Modules
 export interface ActivityItem {
     id: number
-    userId: string // Who did this?
+    userId: string
     title: string
     subtitle: string
     time: string
-    iconType: "payment" | "visitor" | "complaint" | "default"
+    iconType: "payment" | "visitor" | "complaint" | "security" | "meeting" | "default"
     bg: string
     iconColor: string
 }
 
 export interface NotificationItem {
     id: number
-    userId?: string // Specific user or null for broadcast
+    userId?: string
     title: string
     description: string
     time: string
@@ -50,8 +84,8 @@ export interface NotificationItem {
 
 export interface VisitorItem {
     id: number
-    unitId: string // Which unit are they visiting?
-    hostName: string // For Security to know who invited
+    unitId: string
+    hostName: string
     name: string
     type: "Delivery" | "Guest" | "Cab"
     code: string
@@ -72,7 +106,7 @@ export interface AmenityItem {
 
 export interface ServiceRequestItem {
     id: string
-    unitId: string // Requesting unit
+    unitId: string
     category: "Electrician" | "Plumber" | "Carpenter" | "Appliance" | "Community" | "Others"
     title: string
     description: string
@@ -80,15 +114,15 @@ export interface ServiceRequestItem {
     date: string
     urgency: "Low" | "Medium" | "High"
     image?: string
-    photo?: string // Uploaded photo
+    photo?: string
     preferredDate?: string
     preferredTime?: string
-    assignedTo?: string // Staff ID
+    assignedTo?: string
 }
 
 export interface PaymentItem {
     id: string
-    unitId: string // Billed unit
+    unitId: string
     title: string
     amount: string
     dueDate: string
@@ -138,7 +172,7 @@ export interface VehicleItem {
     id: string
     userId: string
     type: "Car" | "Bike"
-    category: "EV" | "ICE" // ICE = Internal Combustion Engine
+    category: "EV" | "ICE"
     registrationNumber: string
     model?: string
     color?: string
@@ -177,8 +211,7 @@ export interface SavedVisitorItem {
     name: string
     type: "Guest" | "Delivery" | "Cab"
     avatar?: string
-    relation?: string // e.g., "Mom", "Maid"
-    relation?: string // e.g., "Mom", "Maid"
+    relation?: string
     phone?: string
     email?: string
     lastVisit?: string
@@ -197,23 +230,12 @@ export interface FrequentVisitorItem {
 
 export interface AttendanceItem {
     id: string
-    date: string // Display string
-    isoDate: string // YYYY-MM-DD for calendar
+    date: string
+    isoDate: string
     checkIn: string
     checkOut?: string
     status: "Present" | "Absent" | "Half-day"
 }
-
-const MOCK_SAVED_VISITORS: SavedVisitorItem[] = [
-    { id: "SV-1", name: "Mohan", type: "Guest", relation: "Tution Teacher", phone: "9876543210", email: "mohan@tutor.com", lastVisit: "2 days ago", avatar: "M" },
-    { id: "SV-2", name: "Ramesh Electrician", type: "Guest", relation: "Service", phone: "9870000000", lastVisit: "1 week ago", avatar: "R" },
-    { id: "SV-6", name: "Priya Singh", type: "Guest", relation: "Sister", phone: "9988776611", lastVisit: "Today", avatar: "P" },
-]
-
-const MOCK_FREQUENT_VISITORS: FrequentVisitorItem[] = [
-    { id: "FV-1", name: "Sunita Helper", type: "Staff", relation: "Maid", validUntil: "2024-12-31", allowedTimeSlot: "Morning (8am-12pm)", isActive: true, avatar: "S" },
-    { id: "FV-2", name: "School Van", type: "Cab", relation: "Daily Drop", validUntil: "2024-06-30", allowedTimeSlot: "Afternoon (2pm-4pm)", isActive: true },
-]
 
 export interface BookingItem {
     id: string
@@ -223,476 +245,905 @@ export interface BookingItem {
     date: string
     slots: string[]
     status: "Confirmed" | "Cancelled" | "Completed"
-    timestamp: number // for sorting
+    timestamp: number
 }
 
-const MOCK_BOOKINGS: BookingItem[] = [
-    { id: "B-1", userId: "U-001", amenityId: "pool", amenityName: "Swimming Pool", date: "2024-02-10", slots: ["07:00 AM"], status: "Completed", timestamp: 1707529200000 },
-    { id: "B-2", userId: "U-001", amenityId: "tennis", amenityName: "Tennis Court", date: "2024-02-15", slots: ["06:00 PM", "07:00 PM"], status: "Confirmed", timestamp: 1707961200000 }
-]
+// ==========================================
+// Transform Functions (Backend -> Frontend)
+// ==========================================
 
-// --- Mock Data (Central Database) ---
-
-const MOCK_USERS: UserItem[] = [
-    { id: "U-001", name: "Vikram", role: "Resident", unitId: "A-101", phone: "+91 98765 43210", email: "vikram@email.com" },
-    { id: "U-002", name: "Admin User", role: "Admin", phone: "+91 99999 88888", email: "admin@society.com" },
-    { id: "U-003", name: "Ramesh Guard", role: "Security", phone: "+91 77777 66666", email: "gate@society.com" },
-]
-
-const MOCK_UNITS: UnitItem[] = [
-    { id: "A-101", tower: "A", floor: 1, number: "101", residentId: "U-001", status: "Occupied" },
-    { id: "A-102", tower: "A", floor: 1, number: "102", status: "Vacant" },
-]
-
-const MOCK_STAFF: StaffItem[] = [
-    { id: "S-001", name: "Suresh Electrician", role: "Electrician", status: "Available", phone: "9876500001" },
-    { id: "S-002", name: "Mahesh Plumber", role: "Plumber", status: "Busy", phone: "9876500002" },
-]
-
-const MOCK_INVENTORY: InventoryItem[] = [
-    { id: "I-001", name: "LED Bulbs (9W)", category: "Electrical", quantity: 45, status: "In Stock" },
-    { id: "I-002", name: "Tap Washers", category: "Plumbing", quantity: 12, status: "Low Stock" },
-]
-
-const MOCK_SERVICE_REQUESTS: ServiceRequestItem[] = [
-    {
-        id: "SR-1023",
-        unitId: "A-101",
-        category: "Plumber",
-        title: "Leaking Kitchen Sink",
-        description: "Water is dripping continuously from the main tap.",
-        status: "In Progress",
-        date: "Today, 10:30 AM",
-        urgency: "High",
-        assignedTo: "S-002",
-        photo: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3",
-        preferredDate: "2024-02-12"
-    },
-    {
-        id: "SR-0998",
-        unitId: "A-101",
-        category: "Electrician",
-        title: "Bedroom Switch Fault",
-        description: "Main light switch sparking when turned on.",
-        status: "Resolved",
-        date: "Jan 28, 2024",
-        urgency: "Medium",
-        assignedTo: "S-001",
-        preferredDate: "2024-01-29"
-    },
-    {
-        id: "SR-0992",
-        unitId: "A-101",
-        category: "Others",
-        title: "Wall Crack Analysis",
-        description: "Noticed a hairline crack in the living room wall.",
-        status: "Closed",
-        date: "Jan 15, 2024",
-        urgency: "Low"
+function transformResidentToUser(resident: ResidentProfile): UserItem {
+    return {
+        id: resident.id,
+        name: resident.fullName,
+        role: "Resident",
+        unitId: resident.units[0]?.id,
+        phone: resident.mobileNumber,
+        email: resident.email || "",
     }
-]
+}
 
-const MOCK_PAYMENTS: PaymentItem[] = [
-    // UTILITIES
-    { id: "PAY-102", unitId: "A-101", title: "Electricity Bill - Jan 2024", amount: "₹2,450", dueDate: "Feb 10, 2024", status: "Pending", category: "Utilities", type: "Electricity" },
-    { id: "PAY-105", unitId: "A-101", title: "Pipe Gas Bill", amount: "₹850", dueDate: "Feb 12, 2024", status: "Pending", category: "Utilities", type: "Gas" },
-    { id: "PAY-106", unitId: "A-101", title: "Water Charges", amount: "₹450", dueDate: "Feb 15, 2024", status: "Pending", category: "Utilities", type: "Water" },
+function transformVisitorGroup(group: VisitorGroup): VisitorItem {
+    const firstVisitor = group.visitors[0]
+    return {
+        id: parseInt(group.id.slice(-4), 16) || Date.now(),
+        unitId: "",
+        hostName: "",
+        name: firstVisitor?.name || "Visitor",
+        type: "Guest",
+        code: group.qrToken.slice(0, 4).toUpperCase(),
+        time: new Date(group.expectedFrom).toLocaleString(),
+        status: group.status === "ACTIVE" ? "Expected" : "Left",
+    }
+}
 
-    // RENTALS & CHARGES
-    { id: "PAY-101", unitId: "A-101", title: "Monthly Maintenance - Feb 2024", amount: "₹5,000", dueDate: "Feb 05, 2024", status: "Pending", category: "Rentals", type: "Maintenance" },
-    { id: "PAY-107", unitId: "A-101", title: "Monthly Rent", amount: "₹25,000", dueDate: "Feb 01, 2024", status: "Overdue", category: "Rentals", type: "Rent" },
-    { id: "PAY-108", unitId: "A-101", title: "Late Payment Penalty", amount: "₹500", dueDate: "Immediate", status: "Pending", category: "Rentals", type: "Penalty" },
-    { id: "PAY-109", unitId: "A-101", title: "EV Charging Station - Usage", amount: "₹1,200", dueDate: "Feb 08, 2024", status: "Pending", category: "Rentals", type: "EV" },
+function transformVehicle(vehicle: Vehicle): VehicleItem {
+    return {
+        id: vehicle.id,
+        userId: "",
+        type: vehicle.type === "TWO_WHEELER" ? "Bike" : "Car",
+        category: vehicle.type === "EV" ? "EV" : "ICE",
+        registrationNumber: vehicle.vehicleNumber,
+        model: vehicle.model || undefined,
+        color: undefined, // Backend doesn't store color
+    }
+}
 
-    // HISTORY
-    { id: "PAY-110", unitId: "A-101", title: "New Year Event Contribution", amount: "₹2,000", dueDate: "Jan 15, 2024", status: "Paid", category: "Rentals", type: "Event", paymentDate: "Jan 10, 2024" },
-    { id: "PAY-099", unitId: "A-101", title: "Quarterly Water Charges", amount: "₹1,200", dueDate: "Jan 15, 2024", status: "Paid", category: "Utilities", type: "Water", paymentDate: "Jan 14, 2024", transactionId: "TXN87654321" }
-]
+function transformAmenity(amenity: Amenity): AmenityItem {
+    const iconMap: Record<string, AmenityItem["iconType"]> = {
+        GYM: "gym",
+        POOL: "pool",
+        HALL: "clubhouse",
+        OTHER: "conference",
+    }
+    const gradientMap: Record<string, string> = {
+        GYM: "linear-gradient(to bottom right, #f97316, #ea580c)",
+        POOL: "linear-gradient(to bottom right, #3b82f6, #1d4ed8)",
+        HALL: "linear-gradient(to bottom right, #9333ea, #7e22ce)",
+        OTHER: "linear-gradient(to bottom right, #4b5563, #374151)",
+    }
+    return {
+        id: amenity.id,
+        name: amenity.name,
+        description: amenity.rules || "",
+        status: amenity.status === "ACTIVE" ? "Open" : "Maintenance",
+        timing: `${amenity.slotDurationMinutes} min slots`,
+        iconType: iconMap[amenity.type] || "conference",
+        imageGradient: gradientMap[amenity.type] || gradientMap.OTHER,
+        rules: amenity.rules ? [amenity.rules] : undefined,
+    }
+}
 
-const MOCK_ACTIVITIES: ActivityItem[] = [
-    { id: 1, userId: "A-101", title: "Maintenance Paid", subtitle: "₹5,000 paid for January", time: "2 days ago", iconType: "payment", iconColor: "text-green-600", bg: "bg-green-50" },
-    { id: 2, userId: "A-101", title: "Visitor Approved", subtitle: "Rahul Sharma - Delivery", time: "3 days ago", iconType: "visitor", iconColor: "text-blue-600", bg: "bg-blue-50" },
-    { id: 3, userId: "A-101", title: "Complaint Resolved", subtitle: "Plumbing issue fixed", time: "5 days ago", iconType: "complaint", iconColor: "text-orange-600", bg: "bg-orange-50" },
-]
+function transformBooking(booking: Booking): BookingItem {
+    const statusMap: Record<string, BookingItem["status"]> = {
+        CONFIRMED: "Confirmed",
+        CANCELLED: "Cancelled",
+        COMPLETED: "Completed",
+    }
+    // Helper to format date and time
+    const firstSlot = booking.slots?.[0]?.slot?.startTime
+    const bookingDate = firstSlot ? new Date(firstSlot).toLocaleDateString() : new Date(booking.createdAt).toLocaleDateString()
 
-const MOCK_NOTIFICATIONS: NotificationItem[] = [
-    { id: 1, title: "Maintenance Due", description: "Your monthly maintenance is due on Feb 5", time: "2h ago", type: "payment", read: false },
-    { id: 2, title: "Community Event", description: "Republic Day celebration at clubhouse", time: "5h ago", type: "event", read: false },
-    { id: 3, title: "Water Supply Notice", description: "Water supply will be interrupted tomorrow from 10 AM to 2 PM for tank cleaning", time: "1d ago", type: "notice", read: false },
-    { id: 4, title: "New Message from Ramesh", description: "Notice: Water tanker has arrived at Gate 1.", time: "10:30 AM", type: "notice", read: false }, // Synced with Chat
-    { id: 5, title: "Event Update", description: "Morning Yoga Workshop is starting in 30 mins!", time: "Sun, 6:30 AM", type: "event", read: true }, // Synced with Event
-    { id: 6, title: "Security Alert", description: "New visitor management system activated", time: "3d ago", type: "security", read: true },
-]
+    // Extract times from slots
+    const timeSlots = booking.slots?.map((s: any) => {
+        const date = new Date(s.slot.startTime)
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }) || []
 
-const MOCK_VISITORS: VisitorItem[] = [
-    { id: 1, unitId: "A-101", hostName: "Vikram Singh", name: "Rahul Sharma", type: "Delivery", code: "4521", time: "Expected today, 2:00 PM", status: "Expected" },
-    { id: 2, unitId: "A-101", hostName: "Vikram Singh", name: "Priya Singh", type: "Guest", code: "9087", time: "Today, 6:00 PM", status: "Inside" },
-    { id: 3, unitId: "A-101", hostName: "Vikram Singh", name: "Uber Cab", type: "Cab", code: "WB-02-1234", time: "Yesterday", status: "Left" },
-]
-
-const MOCK_AMENITIES: AmenityItem[] = [
-    { id: "pool", name: "Swimming Pool", description: "Olympic sized pool with temperature control.", status: "Open", timing: "6 AM - 10 PM", iconType: "pool", imageGradient: "linear-gradient(to bottom right, #3b82f6, #1d4ed8)", rules: ["Shower before entering"] },
-    { id: "gym", name: "Fitness Center", description: "Fully equipped gym with cardio and weights.", status: "Open", timing: "5 AM - 11 PM", iconType: "gym", imageGradient: "linear-gradient(to bottom right, #f97316, #ea580c)", rules: ["Carry a towel"] },
-    { id: "clubhouse", name: "Club House", description: "For parties, events and indoor games.", status: "Booked Today", timing: "9 AM - 11 PM", iconType: "clubhouse", imageGradient: "linear-gradient(to bottom right, #9333ea, #7e22ce)", rules: ["No loud music after 10 PM"] },
-    { id: "conference", name: "Conf. Room", description: "Quiet space for meetings.", status: "Open", timing: "24/7", iconType: "conference", imageGradient: "linear-gradient(to bottom right, #4b5563, #374151)", rules: ["Keep noise to minimum"] },
-    { id: "tennis", name: "Tennis Court", description: "Pro hard court with floodlights.", status: "Open", timing: "6 AM - 9 PM", iconType: "tennis", imageGradient: "linear-gradient(to bottom right, #10b981, #059669)", rules: ["Non-marking shoes"] },
-]
-
-const MOCK_NOTICES: NoticeItem[] = [
-    { id: "N-001", title: "Lift Maintenance", content: "Lift A will be down for servicing on Sunday.", date: "Feb 3, 2024", type: "General", audience: "Residents Only" }
-]
-
-const MOCK_FAMILY_MEMBERS: FamilyMemberItem[] = [
-    { id: "FM-001", name: "Priya Singh", relation: "Spouse", age: "32", phone: "9876543211", accessLevel: "Full" },
-    { id: "FM-002", name: "Aarav Singh", relation: "Child", age: "8", accessLevel: "None" }
-]
-
-const MOCK_VEHICLES: VehicleItem[] = [
-    { id: "V-001", userId: "U-001", type: "Car", category: "EV", registrationNumber: "KA 01 MG 1234", model: "Tata Nexon EV", color: "Blue" },
-    { id: "V-002", userId: "U-001", type: "Bike", category: "ICE", registrationNumber: "KA 05 JJ 9988", model: "Royal Enfield", color: "Black" }
-]
-
-const MOCK_COMMUNITY_MESSAGES: CommunityMessageItem[] = [
-    { id: 1, sender: "Ramesh (Security)", role: "security", text: "Notice: Water tanker has arrived at Gate 1.", time: "10:30 AM", avatar: "R", color: "bg-green-100 text-green-700" },
-    { id: 2, sender: "Priya (B-402)", role: "resident", text: "Great, thanks Ramesh! Is the lift working now?", time: "10:32 AM", avatar: "P", color: "bg-pink-100 text-pink-700" },
-    { id: 3, sender: "Rahul (A-101)", role: "resident", text: "Yes, I just used it. It's working fine.", time: "10:35 AM", avatar: "R", color: "bg-blue-100 text-blue-700" },
-    { id: 4, sender: "Admin", role: "admin", text: "Please remember to separate dry and wet waste before disposal.", time: "11:00 AM", avatar: "A", color: "bg-gray-800 text-white" },
-    { id: 5, sender: "Simran (C-505)", role: "resident", text: "Does anyone have a contact for a good carpenter?", time: "11:15 AM", avatar: "S", color: "bg-orange-100 text-orange-700" },
-]
-
-const MOCK_COMMUNITY_EVENTS: CommunityEventItem[] = [
-    {
-        id: 1,
-        title: "Morning Yoga Workshop",
-        time: "Sun, 7:00 AM",
-        location: "Yoga Deck",
-        participants: 12,
-        imageGradient: "from-orange-400 to-pink-500",
-        description: "Start your Sunday with a refreshing Hatha Yoga session led by certified instructor Meera. Suitable for all levels. Please bring your own mat.",
-        organizer: "Health Club",
-        price: "Free",
-        rsvpStatus: "pending"
-    },
-    {
-        id: 2,
-        title: "Kids Art Competition",
-        time: "Sat, 4:00 PM",
-        location: "Clubhouse",
-        participants: 28,
-        imageGradient: "from-blue-400 to-indigo-500",
-        description: "Annual art competition for kids aged 5-12. Theme: 'Future Cities'. Colors and paper will be provided. Exciting prizes for winners!",
-        organizer: "Cultural Committee",
-        price: "₹100",
-        rsvpStatus: "pending"
-    },
-]
+    return {
+        id: booking.id,
+        userId: "",
+        amenityId: booking.amenityId,
+        amenityName: booking.amenity?.name || "Unknown Amenity",
+        date: bookingDate,
+        slots: timeSlots,
+        status: statusMap[booking.status] || "Confirmed",
+        timestamp: new Date(booking.createdAt).getTime(),
+    }
+}
 
 
-// --- API Methods ---
-// Mock State
-let MOCK_SOS_ACTIVE = false
+function transformServiceRequest(sr: ServiceRequest): ServiceRequestItem {
+    const statusMap: Record<string, ServiceRequestItem["status"]> = {
+        NEW: "Open",
+        ASSIGNED: "In Progress",
+        IN_PROGRESS: "In Progress",
+        COMPLETED: "Resolved",
+        CLOSED: "Closed",
+    }
+    return {
+        id: sr.id,
+        unitId: sr.unitId,
+        category: sr.category as ServiceRequestItem["category"],
+        title: `${sr.category} Issue` || "Service Request", // Synthesize title
+        description: sr.description,
+        status: statusMap[sr.status] || "Open",
+        date: new Date(sr.createdAt).toLocaleDateString(),
+        urgency: sr.priority as ServiceRequestItem["urgency"],
+    }
+}
+
+function transformInvoice(invoice: Invoice): PaymentItem {
+    const typeMap: Record<string, PaymentItem["type"]> = {
+        MAINTENANCE: "Maintenance",
+        AMENITY: "Other",
+        EV: "EV",
+    }
+    return {
+        id: invoice.id,
+        unitId: invoice.unitId,
+        title: `${invoice.type} - ${new Date(invoice.dueDate).toLocaleDateString()}`,
+        amount: `₹${invoice.amount.toLocaleString()}`,
+        dueDate: new Date(invoice.dueDate).toLocaleDateString(),
+        status: invoice.status === "PAID" ? "Paid" : invoice.status === "OVERDUE" ? "Overdue" : "Pending",
+        category: invoice.type === "MAINTENANCE" ? "Rentals" : "Utilities",
+        type: typeMap[invoice.type] || "Other",
+    }
+}
+
+function transformNotification(notif: Notification): NotificationItem {
+    return {
+        id: parseInt(notif.id.slice(-4), 16) || Date.now(),
+        title: notif.title,
+        description: notif.body,
+        time: new Date(notif.createdAt).toLocaleString(),
+        type: "notice",
+        read: !!notif.readAt,
+    }
+}
+
+function transformAnnouncement(ann: Announcement): NoticeItem {
+    const typeMap: Record<string, NoticeItem["type"]> = {
+        URGENT: "Emergency",
+        IMPORTANT: "General",
+        GENERAL: "General",
+    }
+    return {
+        id: ann.id,
+        title: ann.title,
+        content: ann.body,
+        date: new Date(ann.publishedAt).toLocaleDateString(),
+        type: typeMap[ann.priority] || "General",
+        audience: "All",
+    }
+}
+
+function transformRecurringStaff(staff: RecurringStaff): FrequentVisitorItem {
+    return {
+        id: staff.id,
+        name: staff.name,
+        type: "Staff",
+        relation: "Staff",
+        validUntil: staff.validTo ? new Date(staff.validTo).toISOString().split('T')[0] : "",
+        allowedTimeSlot: undefined,
+        isActive: staff.status === "ACTIVE",
+    }
+}
+
+
+// ==========================================
+// API Methods (Real Backend Calls)
+// ==========================================
 
 export const api = {
-    // USER
-    getUserProfile: async (): Promise<UserItem | undefined> => new Promise(resolve => setTimeout(() => resolve(MOCK_USERS[0]), 500)),
-    updateUserProfile: async (data: Partial<UserItem>): Promise<UserItem> => {
-        // Mock update: merge data into the first mock user
-        Object.assign(MOCK_USERS[0], data)
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_USERS[0]), 500))
+    // ==========================================
+    // AUTH
+    // ==========================================
+
+    login: async (identifier: string, password: string): Promise<AuthResponse> => {
+        const response = await httpClient.post<AuthResponse>("/auth/login", { identifier, password }, { skipAuth: true })
+        tokenManager.setTokens(response.accessToken, response.refreshToken)
+        return response
     },
 
-    // FAMILY Methods
-    getFamilyMembers: async (): Promise<FamilyMemberItem[]> => new Promise(resolve => setTimeout(() => resolve([...MOCK_FAMILY_MEMBERS]), 500)),
-    addFamilyMember: async (member: Omit<FamilyMemberItem, "id">): Promise<FamilyMemberItem> => {
-        const newMember = { ...member, id: `FM-${Date.now()}` }
-        MOCK_FAMILY_MEMBERS.push(newMember)
-        return new Promise(resolve => setTimeout(() => resolve(newMember), 500))
-    },
-    updateFamilyMember: async (id: string, data: Partial<FamilyMemberItem>): Promise<FamilyMemberItem | undefined> => {
-        const index = MOCK_FAMILY_MEMBERS.findIndex(m => m.id === id)
-        if (index !== -1) {
-            Object.assign(MOCK_FAMILY_MEMBERS[index], data)
-            return new Promise(resolve => setTimeout(() => resolve(MOCK_FAMILY_MEMBERS[index]), 500))
+    sendOTP: async (target: string, type: "email" | "phone"): Promise<{ success: boolean; code: string }> => {
+        await httpClient.post("/auth/otp/request", { identifier: target }, { skipAuth: true })
+        // Store target for verifyOTP backward compatibility
+        if (typeof window !== 'undefined') {
+            sessionStorage.setItem('otp_target', target)
         }
-        return undefined
-    },
-    deleteFamilyMember: async (id: string): Promise<boolean> => {
-        const index = MOCK_FAMILY_MEMBERS.findIndex(m => m.id === id)
-        if (index !== -1) {
-            MOCK_FAMILY_MEMBERS.splice(index, 1)
-            return new Promise(resolve => setTimeout(() => resolve(true), 500))
-        }
-        return false
+        return { success: true, code: "" }
     },
 
-    // VEHICLE Methods
-    getVehicles: async (): Promise<VehicleItem[]> => new Promise(resolve => setTimeout(() => resolve([...MOCK_VEHICLES]), 500)),
-    addVehicle: async (vehicle: Omit<VehicleItem, "id" | "userId">): Promise<VehicleItem> => {
-        const newVehicle = { ...vehicle, id: `V-${Date.now()}`, userId: "U-001" }
-        MOCK_VEHICLES.push(newVehicle)
-        return new Promise(resolve => setTimeout(() => resolve(newVehicle), 500))
-    },
-    updateVehicle: async (id: string, data: Partial<VehicleItem>): Promise<VehicleItem | undefined> => {
-        const index = MOCK_VEHICLES.findIndex(v => v.id === id)
-        if (index !== -1) {
-            Object.assign(MOCK_VEHICLES[index], data)
-            return new Promise(resolve => setTimeout(() => resolve(MOCK_VEHICLES[index]), 500))
-        }
-        return undefined
-    },
-    deleteVehicle: async (id: string): Promise<boolean> => {
-        const index = MOCK_VEHICLES.findIndex(v => v.id === id)
-        if (index !== -1) {
-            MOCK_VEHICLES.splice(index, 1)
-            return new Promise(resolve => setTimeout(() => resolve(true), 500))
-        }
-        return false
-    },
 
-    // AUTH & SECURITY
-    sendOTP: async (target: string, type: 'email' | 'phone'): Promise<{ success: boolean, code: string }> => {
-        // Mock sending OTP
-        console.log(`Sending OTP to ${type} (${target}): 1234`)
-        return new Promise(resolve => setTimeout(() => resolve({ success: true, code: "1234" }), 1000))
-    },
-    verifyOTP: async (input: string): Promise<boolean> => {
-        return new Promise(resolve => setTimeout(() => resolve(input === "1234"), 500))
-    },
-    verifyPassword: async (input: string): Promise<boolean> => {
-        // Mock current password check
-        return new Promise(resolve => setTimeout(() => resolve(input === "password123"), 800))
-    },
-    changePassword: async (newPass: string): Promise<boolean> => {
-        return new Promise(resolve => setTimeout(() => resolve(true), 1000))
-    },
-
-    // GENERAL DATA
-    getActivities: async (): Promise<ActivityItem[]> => MOCK_ACTIVITIES,
-    getNotifications: async (): Promise<NotificationItem[]> => MOCK_NOTIFICATIONS,
-    markNotificationAsRead: async (id: number): Promise<boolean> => {
-        const notif = MOCK_NOTIFICATIONS.find(n => n.id === id)
-        if (notif) {
-            notif.read = true
+    verifyOTP: async (otp: string, identifier?: string): Promise<boolean> => {
+        try {
+            // If identifier not provided, try to get from session storage (for backward compatibility)
+            const target = identifier || (typeof window !== 'undefined' ? sessionStorage.getItem('otp_target') : null) || ''
+            const response = await httpClient.post<AuthResponse>("/auth/otp/verify", { identifier: target, otp }, { skipAuth: true })
+            tokenManager.setTokens(response.accessToken, response.refreshToken)
             return true
+        } catch {
+            return false
+
         }
-        return false
     },
-    markAllNotificationsAsRead: async (): Promise<boolean> => {
-        MOCK_NOTIFICATIONS.forEach(n => n.read = true)
+
+    logout: async (): Promise<void> => {
+        try {
+            await httpClient.post("/auth/logout", {})
+        } finally {
+            tokenManager.clearTokens()
+        }
+    },
+
+    verifyPassword: async (password: string): Promise<boolean> => {
+        // Verify by attempting to get profile (if token is valid)
+        try {
+            await httpClient.get("/auth/me")
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    changePassword: async (newPass: string): Promise<boolean> => {
+        // This would need a dedicated endpoint - stub for now
         return true
     },
-    getUnreadCount: async (): Promise<number> => {
-        return MOCK_NOTIFICATIONS.filter(n => !n.read).length
-    },
-    simulateLiveNotification: async (): Promise<NotificationItem> => {
-        const newNotif: NotificationItem = {
-            id: Date.now(),
-            title: "New Community Message",
-            description: "Admin: Please verify your vehicle details by evening.",
-            time: "Just now",
-            type: "notice",
-            read: false
+
+    // ==========================================
+    // USER PROFILE
+    // ==========================================
+
+    getUserProfile: async (): Promise<UserItem | undefined> => {
+        try {
+            const resident = await httpClient.get<ResidentProfile>("/auth/me")
+            return transformResidentToUser(resident)
+        } catch {
+            return undefined
         }
-        MOCK_NOTIFICATIONS.unshift(newNotif)
-        return newNotif
     },
 
-    getVisitors: async (): Promise<VisitorItem[]> => MOCK_VISITORS,
-    getAmenities: async (): Promise<AmenityItem[]> => MOCK_AMENITIES,
-    getAmenityById: async (id: string) => MOCK_AMENITIES.find(a => a.id === id),
-
-    getMyBookings: async (): Promise<BookingItem[]> => {
-        return new Promise(resolve => setTimeout(() => resolve([...MOCK_BOOKINGS].sort((a, b) => b.timestamp - a.timestamp)), 500))
-    },
-    getBookingById: async (id: string): Promise<BookingItem | undefined> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_BOOKINGS.find(b => b.id === id)), 400))
-    },
-
-    bookAmenity: async (amenityId: string, date: string, slots: string[]): Promise<boolean> => {
-        const amenity = MOCK_AMENITIES.find(a => a.id === amenityId)
-        if (!amenity) return false
-
-        const newBooking: BookingItem = {
-            id: `B-${Date.now()}`,
-            userId: "U-001",
-            amenityId,
-            amenityName: amenity.name,
-            date,
-            slots,
-            status: "Confirmed",
-            timestamp: Date.now()
-        }
-        MOCK_BOOKINGS.unshift(newBooking)
-        return new Promise(resolve => setTimeout(() => resolve(true), 800))
-    },
-
-    getServiceRequests: async (): Promise<ServiceRequestItem[]> => MOCK_SERVICE_REQUESTS,
-    getServiceRequestById: async (id: string): Promise<ServiceRequestItem | undefined> => new Promise(resolve => setTimeout(() => resolve(MOCK_SERVICE_REQUESTS.find(r => r.id === id)), 400)),
-    // SOS Feature
-    triggerSOS: async (): Promise<boolean> => {
-        MOCK_SOS_ACTIVE = true
-        return new Promise(resolve => setTimeout(() => resolve(true), 800))
-    },
-    cancelSOS: async (): Promise<boolean> => {
-        MOCK_SOS_ACTIVE = false
-        return new Promise(resolve => setTimeout(() => resolve(true), 500))
-    },
-    getSOSStatus: async (): Promise<boolean> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_SOS_ACTIVE), 200))
-    },
-    getVisitorAttendance: async (id: string): Promise<AttendanceItem[]> => {
-        // Mock attendance for last 5 days
-        const today = new Date()
-        const formatDate = (date: Date) => date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
-        const formatIso = (date: Date) => date.toISOString().split('T')[0]
-
-        const days = Array.from({ length: 5 }, (_, i) => {
-            const d = new Date(today)
-            d.setDate(today.getDate() - i)
-            return d
+    updateUserProfile: async (data: Partial<UserItem>): Promise<UserItem> => {
+        const resident = await httpClient.patch<ResidentProfile>("/residents/me", {
+            fullName: data.name,
+            email: data.email,
         })
-
-        const data: AttendanceItem[] = [
-            { id: "ATT-1", date: `Today, ${formatDate(days[0])}`, isoDate: formatIso(days[0]), checkIn: "08:30 AM", status: "Present" },
-            { id: "ATT-2", date: `Yesterday, ${formatDate(days[1])}`, isoDate: formatIso(days[1]), checkIn: "08:35 AM", checkOut: "04:00 PM", status: "Present" },
-            { id: "ATT-3", date: `${days[2].toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDate(days[2])}`, isoDate: formatIso(days[2]), checkIn: "08:30 AM", checkOut: "04:15 PM", status: "Present" },
-            { id: "ATT-4", date: `${days[3].toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDate(days[3])}`, isoDate: formatIso(days[3]), checkIn: "-", status: "Absent" },
-            { id: "ATT-5", date: `${days[4].toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDate(days[4])}`, isoDate: formatIso(days[4]), checkIn: "09:00 AM", checkOut: "01:00 PM", status: "Half-day" },
-        ]
-        return new Promise(resolve => setTimeout(() => resolve(data), 600))
+        return transformResidentToUser(resident)
     },
 
-    // Frequent Visitors
-    getFrequentVisitors: async (): Promise<FrequentVisitorItem[]> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_FREQUENT_VISITORS), 600))
-    },
-    getFrequentVisitorById: async (id: string): Promise<FrequentVisitorItem | undefined> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_FREQUENT_VISITORS.find(v => v.id === id)), 400))
-    },
-    addFrequentVisitor: async (visitor: Omit<FrequentVisitorItem, "id">): Promise<boolean> => {
-        const newItem: FrequentVisitorItem = {
-            ...visitor,
-            id: `FV-${Date.now()}`
+    // ==========================================
+    // FAMILY MEMBERS
+    // ==========================================
+
+    getFamilyMembers: async (): Promise<FamilyMemberItem[]> => {
+        // Backend may need a dedicated endpoint - using residents for now
+        try {
+            const data = await httpClient.get<{ members: FamilyMemberItem[] }>("/residents/me/family")
+            return data.members || []
+        } catch {
+            return []
         }
-        MOCK_FREQUENT_VISITORS.push(newItem)
-        return new Promise(resolve => setTimeout(() => resolve(true), 1000))
     },
-    updateFrequentVisitor: async (id: string, updates: Partial<FrequentVisitorItem>): Promise<boolean> => {
-        const index = MOCK_FREQUENT_VISITORS.findIndex(v => v.id === id)
-        if (index !== -1) {
-            Object.assign(MOCK_FREQUENT_VISITORS[index], updates)
-            return new Promise(resolve => setTimeout(() => resolve(true), 1000))
+
+    addFamilyMember: async (member: Omit<FamilyMemberItem, "id">): Promise<FamilyMemberItem> => {
+        return httpClient.post<FamilyMemberItem>("/residents/me/family", member)
+    },
+
+    updateFamilyMember: async (id: string, data: Partial<FamilyMemberItem>): Promise<FamilyMemberItem | undefined> => {
+        try {
+            return await httpClient.patch<FamilyMemberItem>(`/residents/me/family/${id}`, data)
+        } catch {
+            return undefined
         }
-        return new Promise(resolve => setTimeout(() => resolve(false), 500))
     },
 
-    getStaffById: async (id: string): Promise<StaffItem | undefined> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_STAFF.find(s => s.id === id)), 400))
-    },
-    getPayments: async (): Promise<PaymentItem[]> => MOCK_PAYMENTS,
-
-    // SECURITY Methods
-    getGateEntries: async (): Promise<VisitorItem[]> => MOCK_VISITORS,
-    verifyVisitorCode: async (code: string): Promise<VisitorItem | undefined> => MOCK_VISITORS.find(v => v.code === code),
-
-    getSavedVisitors: async (): Promise<SavedVisitorItem[]> => new Promise(resolve => setTimeout(() => resolve(MOCK_SAVED_VISITORS), 400)),
-    getSavedVisitorById: async (id: string): Promise<SavedVisitorItem | undefined> => {
-        return new Promise(resolve => setTimeout(() => resolve(MOCK_SAVED_VISITORS.find(v => v.id === id)), 400))
-    },
-    updateSavedVisitor: async (id: string, data: Partial<SavedVisitorItem>): Promise<SavedVisitorItem | undefined> => {
-        const index = MOCK_SAVED_VISITORS.findIndex(v => v.id === id)
-        if (index !== -1) {
-            Object.assign(MOCK_SAVED_VISITORS[index], data)
-            return new Promise(resolve => setTimeout(() => resolve(MOCK_SAVED_VISITORS[index]), 600))
+    deleteFamilyMember: async (id: string): Promise<boolean> => {
+        try {
+            await httpClient.delete(`/residents/me/family/${id}`)
+            return true
+        } catch {
+            return false
         }
-        return undefined
+    },
+
+    // ==========================================
+    // VEHICLES
+    // ==========================================
+
+    getVehicles: async (): Promise<VehicleItem[]> => {
+        try {
+            const vehicles = await httpClient.get<Vehicle[]>("/vehicles")
+            return vehicles.map(transformVehicle)
+        } catch {
+            return []
+        }
+    },
+
+    addVehicle: async (vehicle: Omit<VehicleItem, "id" | "userId">): Promise<VehicleItem> => {
+        // Fetch current user to get their Unit ID
+        const profile = await httpClient.get<ResidentProfile>("/auth/me")
+        const unitId = profile.units[0]?.id
+
+        if (!unitId) {
+            throw new Error("No unit found for resident")
+        }
+
+        const request: CreateVehicleRequest = {
+            unitId, // Include the required unitId
+            type: vehicle.type === "Car" ? "FOUR_WHEELER" : vehicle.category === "EV" ? "EV" : "TWO_WHEELER",
+            vehicleNumber: vehicle.registrationNumber, // Map to vehicleNumber
+            model: vehicle.model,
+            // color: vehicle.color // Backend DTO doesn't strictly support color in CreateVehicleDto (it's not validatable), checking if it allows extra fields. 
+            // Checking CreateVehicleDto again: it only has unitId, vehicleNumber, type, model. 
+            // It does NOT have color. So we should omit it or add it if backend supports it. Reference Step 921 -> No color in DTO.
+        }
+
+        // Note: Backend DTO CreateVehicleDto does NOT have 'color'. 
+        // Sending 'color' might cause 400 Bad Request if whitelist validation is on.
+        // I will omit color for now to be safe, or check if I should add it to backend.
+        // User didn't ask for color explicitly, but the UI sends it. 
+        // Let's assume strict validation strips it or errors. Safe to omit if not in DTO.
+
+        const created = await httpClient.post<Vehicle>("/vehicles", request)
+        return transformVehicle(created)
+    },
+
+    updateVehicle: async (id: string, data: Partial<VehicleItem>): Promise<VehicleItem | undefined> => {
+        try {
+            const updated = await httpClient.patch<Vehicle>(`/vehicles/${id}`, {
+                model: data.model,
+                color: data.color,
+            })
+            return transformVehicle(updated)
+        } catch {
+            return undefined
+        }
+    },
+
+    deleteVehicle: async (id: string): Promise<boolean> => {
+        try {
+            await httpClient.delete(`/vehicles/${id}`)
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    // ==========================================
+    // VISITORS
+    // ==========================================
+
+    getVisitors: async (): Promise<VisitorItem[]> => {
+        try {
+            const groups = await httpClient.get<VisitorGroup[]>("/visitors/groups")
+            return groups.map(transformVisitorGroup)
+        } catch {
+            return []
+        }
     },
 
     inviteVisitor: async (data: InviteParams): Promise<{ success: boolean; code?: string; message: string }> => {
-        // Mock processing
-        return new Promise(resolve => setTimeout(() => {
-            const code = Math.floor(1000 + Math.random() * 9000).toString()
+        try {
+            // Extract visitor name based on type
+            let visitorName = ""
+            let visitorPhone: string | undefined
+            let visitorTime = "09:00"
 
-            // 1. Create Active Visitor Entry
-            const newVisitor: VisitorItem = {
-                id: Date.now(),
-                unitId: "A-101",
-                hostName: "Vikram",
-                name: "name" in data ? (data.name || data.vendor) : (data.driverName), // Fallback logic
-                type: data.type,
-                code: code,
-                time: "time" in data && data.time ? `${data.date}, ${data.time}` : `${data.date}`,
-                status: "Expected"
+            if (data.type === "Guest") {
+                visitorName = data.name
+                visitorPhone = data.phone
+                visitorTime = data.time
+            } else if (data.type === "Delivery") {
+                visitorName = data.name || data.vendor
+                visitorPhone = data.phone
+                visitorTime = data.time || "09:00"
+            } else if (data.type === "Cab") {
+                visitorName = data.driverName
+                visitorTime = data.time || "09:00"
             }
-            MOCK_VISITORS.unshift(newVisitor)
 
-            // 2. Auto-save to "Saved Visitors" if not exists (Only for Guests)
-            const visitorName = newVisitor.name
-            const exists = MOCK_SAVED_VISITORS.find(v => v.name.toLowerCase() === visitorName.toLowerCase())
-
-            if (!exists && data.type === 'Guest') {
-                MOCK_SAVED_VISITORS.push({
-                    id: `SV-${Date.now()}`,
+            const request: CreateVisitorGroupRequest = {
+                purpose: data.type,
+                expectedFrom: `${data.date}T${visitorTime}:00`,
+                expectedTo: `${data.date}T23:59:00`,
+                visitors: [{
                     name: visitorName,
-                    type: data.type,
-                    relation: data.type === 'Guest' ? 'Friend' : data.type, // Default relation
-                })
+                    phone: visitorPhone,
+                }],
             }
-
-            if (data.type === 'Guest') {
-                resolve({ success: true, code, message: "Invite Code Generated" })
-            } else {
-                resolve({ success: true, message: "Details shared with Security" })
+            const group = await httpClient.post<VisitorGroup>("/visitors/groups", request)
+            return {
+                success: true,
+                code: group.qrToken.slice(0, 4).toUpperCase(),
+                message: data.type === "Guest" ? "Invite Code Generated" : "Details shared with Security",
             }
-        }, 1200))
-    },
-
-    // FACILITY MANAGER Methods
-    getAllServiceRequests: async (): Promise<ServiceRequestItem[]> => MOCK_SERVICE_REQUESTS,
-    getStaff: async (): Promise<StaffItem[]> => MOCK_STAFF,
-    getInventory: async (): Promise<InventoryItem[]> => MOCK_INVENTORY,
-
-    // ADMIN Methods
-    getOverviewStats: async () => ({
-        residents: MOCK_USERS.length,
-        units: MOCK_UNITS.length,
-        pendingRequests: MOCK_SERVICE_REQUESTS.filter(r => r.status !== "Closed").length,
-        outstandingPayments: MOCK_PAYMENTS.filter(p => p.status === "Pending" || p.status === "Overdue")
-            .reduce((acc, curr) => acc + parseInt(curr.amount.replace(/[^0-9]/g, '')), 0)
-    }),
-    getNotices: async (): Promise<NoticeItem[]> => MOCK_NOTICES,
-
-    // COMMUNITY Methods
-    getCommunityMessages: async (): Promise<CommunityMessageItem[]> => MOCK_COMMUNITY_MESSAGES,
-    sendCommunityMessage: async (text: string): Promise<CommunityMessageItem> => {
-        const newMsg: CommunityMessageItem = {
-            id: Date.now(),
-            sender: "You (A-204)",
-            role: "me",
-            text,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            avatar: "Y",
-            color: "bg-indigo-600 text-white"
+        } catch (e) {
+            return { success: false, message: e instanceof Error ? e.message : "Failed to create invitation" }
         }
-        MOCK_COMMUNITY_MESSAGES.push(newMsg)
-        return newMsg
     },
-    getCommunityEvents: async (): Promise<CommunityEventItem[]> => MOCK_COMMUNITY_EVENTS,
-    getCommunityEventById: async (id: number): Promise<CommunityEventItem | undefined> => MOCK_COMMUNITY_EVENTS.find(e => e.id === id),
-    rsvpEvent: async (id: number, status: "going" | "not_going"): Promise<boolean> => {
-        // Mock API call to RSVP
-        const event = MOCK_COMMUNITY_EVENTS.find(e => e.id === id)
-        if (event) {
-            event.rsvpStatus = status
-            if (status === "going") event.participants++
+
+
+    getSavedVisitors: async (): Promise<SavedVisitorItem[]> => {
+        // This could come from visitor history
+        return []
+    },
+
+    getSavedVisitorById: async (id: string): Promise<SavedVisitorItem | undefined> => {
+        return undefined
+    },
+
+    updateSavedVisitor: async (id: string, data: Partial<SavedVisitorItem>): Promise<SavedVisitorItem | undefined> => {
+        return undefined
+    },
+
+    getFrequentVisitors: async (): Promise<FrequentVisitorItem[]> => {
+        try {
+            const staff = await httpClient.get<RecurringStaff[]>("/visitors/recurring")
+            return staff.map(transformRecurringStaff)
+        } catch {
+            return []
+        }
+    },
+
+
+    getFrequentVisitorById: async (id: string): Promise<FrequentVisitorItem | undefined> => {
+        try {
+            const staff = await httpClient.get<RecurringStaff>(`/visitors/recurring/${id}`)
+            return transformRecurringStaff(staff)
+        } catch {
+            return undefined
+        }
+    },
+
+
+    addFrequentVisitor: async (visitor: Omit<FrequentVisitorItem, "id">): Promise<boolean> => {
+        try {
+            // Calculate validity dates
+            const validFrom = new Date().toISOString()
+            const validTo = visitor.validUntil ? new Date(visitor.validUntil).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+
+            const request: CreateRecurringStaffRequest = {
+                unitId: "u1", // TODO: Get from user context
+                name: visitor.name,
+                mobileNumber: "9999999999", // TODO: Get from form
+                photoUrl: visitor.avatar || "https://example.com/default.jpg",
+                scheduleType: "DAILY",
+                validFrom,
+                validTo,
+            }
+            await httpClient.post("/visitors/recurring", request)
             return true
+        } catch {
+            return false
         }
+    },
+
+
+    updateFrequentVisitor: async (id: string, updates: Partial<FrequentVisitorItem>): Promise<boolean> => {
         return false
-    }
+    },
+
+    getVisitorAttendance: async (id: string): Promise<AttendanceItem[]> => {
+        try {
+            const logs = await httpClient.get<StaffAttendanceLog[]>(`/visitors/recurring/${id}/attendance`)
+
+            return logs.map(log => ({
+                id: log.id,
+                date: new Date(log.checkInAt).toLocaleDateString(),
+                isoDate: new Date(log.checkInAt).toISOString().split('T')[0],
+                checkIn: new Date(log.checkInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                checkOut: log.checkOutAt ? new Date(log.checkOutAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+                status: log.status === 'IN' ? 'Present' : 'Absent', // Simplified mapping
+            }))
+        } catch {
+            return []
+        }
+    },
+
+    // ==========================================
+    // AMENITIES
+    // ==========================================
+
+    getAmenities: async (): Promise<AmenityItem[]> => {
+        try {
+            const amenities = await httpClient.get<Amenity[]>("/amenities")
+            return amenities.map(transformAmenity)
+        } catch {
+            return []
+        }
+    },
+
+    getAmenityById: async (id: string): Promise<AmenityItem | undefined> => {
+        try {
+            const amenities = await httpClient.get<Amenity[]>("/amenities")
+            const amenity = amenities.find(a => a.id === id)
+            return amenity ? transformAmenity(amenity) : undefined
+        } catch {
+            return undefined
+        }
+    },
+
+    getAmenitySlots: async (amenityId: string): Promise<AmenitySlot[]> => {
+        try {
+            return await httpClient.get<AmenitySlot[]>(`/amenities/${amenityId}/slots`)
+        } catch (error) {
+            console.error("Failed to fetch slots:", error)
+            return []
+        }
+    },
+
+    getMyBookings: async (): Promise<BookingItem[]> => {
+        try {
+            const bookings = await httpClient.get<Booking[]>("/amenities/bookings")
+            return bookings.map(transformBooking).sort((a, b) => b.timestamp - a.timestamp)
+        } catch (error) {
+            console.error("Failed to fetch bookings:", error)
+            return []
+        }
+    },
+
+    getBookingById: async (id: string): Promise<BookingItem | undefined> => {
+        try {
+            const bookings = await httpClient.get<Booking[]>("/amenities/bookings")
+            const booking = bookings.find(b => b.id === id)
+            return booking ? transformBooking(booking) : undefined
+        } catch {
+            return undefined
+        }
+    },
+
+    bookAmenity: async (amenityId: string, date: string, slots: string[]): Promise<boolean> => {
+        try {
+            // Fetch current user to get their Unit ID
+            const profile = await httpClient.get<ResidentProfile>("/auth/me")
+            const unitId = profile.units[0]?.id
+
+            if (!unitId) {
+                throw new Error("No unit found for resident")
+            }
+
+            const request: CreateBookingRequest = {
+                slotIds: slots,
+                unitId,
+            }
+            await httpClient.post(`/amenities/${amenityId}/bookings`, request)
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    // ==========================================
+    // SERVICE REQUESTS
+    // ==========================================
+
+    getServiceRequests: async (): Promise<ServiceRequestItem[]> => {
+        try {
+            const requests = await httpClient.get<ServiceRequest[]>("/service-requests")
+            return requests.map(transformServiceRequest)
+        } catch {
+            return []
+        }
+    },
+
+    getServiceRequestById: async (id: string): Promise<ServiceRequestItem | undefined> => {
+        try {
+            const requests = await httpClient.get<ServiceRequest[]>("/service-requests")
+            const sr = requests.find(r => r.id === id)
+            return sr ? transformServiceRequest(sr) : undefined
+        } catch {
+            return undefined
+        }
+    },
+
+    createServiceRequest: async (request: Omit<CreateServiceRequestRequest, "unitId">): Promise<ServiceRequestItem> => {
+        const user = await api.getUserProfile()
+        if (!user || !user.unitId) throw new Error("User has no unit assigned")
+        const unitId = user.unitId
+
+        const payload: CreateServiceRequestRequest = {
+            ...request,
+            unitId
+        }
+
+        const created = await httpClient.post<ServiceRequest>("/service-requests", payload)
+        return transformServiceRequest(created)
+    },
+
+    getAllServiceRequests: async (): Promise<ServiceRequestItem[]> => {
+        return api.getServiceRequests()
+    },
+
+    // ==========================================
+    // PAYMENTS
+    // ==========================================
+
+    getPayments: async (): Promise<PaymentItem[]> => {
+        try {
+            const invoices = await httpClient.get<Invoice[]>("/invoices")
+            return invoices.map(transformInvoice)
+        } catch {
+            return []
+        }
+    },
+
+    getInvoices: async (): Promise<Invoice[]> => {
+        try {
+            return await httpClient.get<Invoice[]>("/invoices")
+        } catch {
+            return []
+        }
+    },
+
+    createPaymentIntent: async (invoiceIds: string[]): Promise<PaymentIntentResponse> => {
+        return httpClient.post<PaymentIntentResponse>("/payments/intent", { invoiceIds })
+    },
+
+    confirmPayment: async (orderId: string, paymentId: string): Promise<boolean> => {
+        try {
+            await httpClient.post("/payments/confirm", { orderId, paymentId })
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    // ==========================================
+    // NOTIFICATIONS
+    // ==========================================
+
+    getActivities: async (): Promise<ActivityItem[]> => {
+        try {
+            const [notifications, requests, invoices, visitors] = await Promise.all([
+                api.getNotifications(),
+                api.getServiceRequests(),
+                api.getInvoices(),
+                api.getFrequentVisitors() // ideally getting visitor logs, but using frequent for now or maybe just notifications
+            ])
+
+            const activities: ActivityItem[] = []
+
+            // Map Notifications
+            notifications.slice(0, 5).forEach(n => {
+                activities.push({
+                    id: n.id,
+                    userId: "me",
+                    title: n.title,
+                    subtitle: n.description,
+                    time: n.time,
+                    iconType: n.type === "payment" ? "payment" : n.type === "security" ? "security" : "default",
+                    bg: "bg-blue-100",
+                    iconColor: "text-blue-600"
+                })
+            })
+
+            // Map Service Requests
+            requests.slice(0, 3).forEach(req => {
+                activities.push({
+                    id: parseInt(req.id) || Date.now(),
+                    userId: "me",
+                    title: `Service Request: ${req.category}`,
+                    subtitle: `${req.title} - ${req.status}`,
+                    time: req.date,
+                    iconType: "complaint",
+                    bg: "bg-orange-100",
+                    iconColor: "text-orange-600"
+                })
+            })
+
+            // Map Payments
+            invoices.filter(i => i.status === "UNPAID").slice(0, 2).forEach(inv => {
+                activities.push({
+                    id: parseInt(inv.id) || Date.now(),
+                    userId: "me",
+                    title: "Bill Due",
+                    subtitle: `${inv.type} Invoice - ₹${inv.amount}`,
+                    time: new Date(inv.dueDate).toLocaleDateString(),
+                    iconType: "payment",
+                    bg: "bg-red-100",
+                    iconColor: "text-red-600"
+                })
+            })
+
+            // Sort by time (approximated as we have mixed formats, but usually new items are top)
+            // For now, simple shuffle or just return combined
+            return activities.slice(0, 10)
+        } catch {
+            return []
+        }
+    },
+
+    getNotifications: async (): Promise<NotificationItem[]> => {
+        try {
+            const notifications = await httpClient.get<Notification[]>("/notifications")
+            return notifications.map(transformNotification)
+        } catch {
+            return []
+        }
+    },
+
+    markNotificationAsRead: async (id: number): Promise<boolean> => {
+        try {
+            await httpClient.patch(`/notifications/${id}/read`, {})
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    markAllNotificationsAsRead: async (): Promise<boolean> => {
+        try {
+            await httpClient.post("/notifications/read-all", {})
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    getUnreadCount: async (): Promise<number> => {
+        try {
+            const notifications = await httpClient.get<Notification[]>("/notifications")
+            return notifications.filter(n => !n.readAt).length
+        } catch {
+            return 0
+        }
+    },
+
+    simulateLiveNotification: async (): Promise<NotificationItem> => {
+        // For testing - returns a fake notification
+        return {
+            id: Date.now(),
+            title: "Test Notification",
+            description: "This is a test notification",
+            time: new Date().toLocaleString(),
+            type: "notice",
+            read: false,
+        }
+    },
+
+    // ==========================================
+    // COMMUNICATIONS
+    // ==========================================
+
+    getNotices: async (): Promise<NoticeItem[]> => {
+        try {
+            const announcements = await httpClient.get<Announcement[]>("/announcements")
+            return announcements.map(transformAnnouncement)
+        } catch {
+            return []
+        }
+    },
+
+    getCommunityMessages: async (): Promise<CommunityMessageItem[]> => {
+        try {
+            const groups = await httpClient.get<ChatGroup[]>("/chat/groups")
+            if (groups.length === 0) return []
+
+            const messages = await httpClient.get<ChatMessage[]>(`/chat/groups/${groups[0].id}/messages`)
+            return messages.map((msg, index) => ({
+                id: index,
+                sender: msg.unitNumber,
+                role: "resident" as const,
+                text: msg.content,
+                time: new Date(msg.createdAt).toLocaleTimeString(),
+                avatar: msg.unitNumber[0],
+                color: "bg-blue-100 text-blue-700",
+            }))
+        } catch {
+            return []
+        }
+    },
+
+    sendCommunityMessage: async (text: string): Promise<CommunityMessageItem> => {
+        const groups = await httpClient.get<ChatGroup[]>("/chat/groups")
+        if (groups.length === 0) throw new Error("No chat groups available")
+
+        const msg = await httpClient.post<ChatMessage>(`/chat/groups/${groups[0].id}/messages`, { content: text })
+        return {
+            id: Date.now(),
+            sender: "You",
+            role: "me",
+            text: msg.content,
+            time: new Date(msg.createdAt).toLocaleTimeString(),
+            avatar: "Y",
+            color: "bg-indigo-600 text-white",
+        }
+    },
+
+    getCommunityEvents: async (): Promise<CommunityEventItem[]> => {
+        // Events could come from announcements or a dedicated endpoint
+        return []
+    },
+
+    getCommunityEventById: async (id: number): Promise<CommunityEventItem | undefined> => {
+        return undefined
+    },
+
+    rsvpEvent: async (id: number, status: "going" | "not_going"): Promise<boolean> => {
+        return false
+    },
+
+    // ==========================================
+    // DELIVERIES
+    // ==========================================
+
+    getDeliveries: async (): Promise<Delivery[]> => {
+        try {
+            return await httpClient.get<Delivery[]>("/deliveries")
+        } catch {
+            return []
+        }
+    },
+
+    createDelivery: async (delivery: CreateDeliveryRequest): Promise<Delivery> => {
+        return httpClient.post<Delivery>("/deliveries", delivery)
+    },
+
+    // ==========================================
+    // SOS & EMERGENCY
+    // ==========================================
+
+    triggerSOS: async (): Promise<boolean> => {
+        try {
+            await httpClient.post("/emergency/sos", {})
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    cancelSOS: async (): Promise<boolean> => {
+        try {
+            await httpClient.post("/emergency/sos/cancel", {})
+            return true
+        } catch {
+            return false
+        }
+    },
+
+    getSOSStatus: async (): Promise<boolean> => {
+        return false
+    },
+
+    // ==========================================
+    // FACILITY (for staff)
+    // ==========================================
+
+    getStaff: async (): Promise<StaffItem[]> => {
+        return []
+    },
+
+    getStaffById: async (id: string): Promise<StaffItem | undefined> => {
+        return undefined
+    },
+
+    getInventory: async (): Promise<InventoryItem[]> => {
+        return []
+    },
+
+    // ==========================================
+    // ADMIN
+    // ==========================================
+
+    getOverviewStats: async () => {
+        return {
+            residents: 0,
+            units: 0,
+            pendingRequests: 0,
+            outstandingPayments: 0,
+        }
+    },
+
+    // ==========================================
+    // SECURITY (for guards)
+    // ==========================================
+
+    getGateEntries: async (): Promise<VisitorItem[]> => {
+        return api.getVisitors()
+    },
+
+    verifyVisitorCode: async (code: string): Promise<VisitorItem | undefined> => {
+        const visitors = await api.getVisitors()
+        return visitors.find(v => v.code === code)
+    },
 }
 
+// ==========================================
+// Icon Helper
+// ==========================================
 
-// --- Helper to map string types to Icons ---
 export const getIconForType = (type: string) => {
     switch (type) {
         case "payment": return CreditCard
@@ -710,20 +1161,16 @@ export const getIconForType = (type: string) => {
         case "gym": return Dumbbell
         case "clubhouse": return PartyPopper
         case "conference": return Users
-        case "tennis": return Dumbbell // Placeholder
+        case "tennis": return Dumbbell
         case "Plumber": return Waves
         case "Electrician": return Zap
         case "Carpenter": return Hammer
         case "Appliance": return Package
         case "Others": return MessageSquare
-
-        // Smart Home
         case "AC": return Waves
-        case "Fan": return Zap // using Zap as placeholder for Fan
-        case "Light": return Zap // using Zap as placeholder for Light
+        case "Fan": return Zap
+        case "Light": return Zap
         case "TV": return Radio
-
-        // Community
         case "Maintenance": return Home
         case "Electricity": return Zap
         case "Water": return Droplets

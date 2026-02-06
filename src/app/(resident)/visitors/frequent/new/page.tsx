@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save, User, Calendar, Clock, IdCard } from "lucide-react"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
+
 
 export default function NewFrequentVisitorPage() {
     const router = useRouter()
@@ -163,8 +163,8 @@ export default function NewFrequentVisitorPage() {
                                         key={slot}
                                         onClick={() => setAllowedTimeSlot(slot)}
                                         className={`text-left p-3 rounded-xl text-xs font-semibold border transition-all ${allowedTimeSlot === slot
-                                                ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                                                : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100'
+                                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                            : 'bg-gray-50 border-transparent text-gray-600 hover:bg-gray-100'
                                             }`}
                                     >
                                         {slot}
