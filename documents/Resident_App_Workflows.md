@@ -25,6 +25,13 @@
 4.  Modify their **Allowed Time Slots** (e.g., Change from "Morning" to "All Day").
 5.  Tap **Save Changes**.
 
+### Revoke a Visitor Pass
+1.  Navigate to **Visitors > Saved/Frequent Visitors**.
+2.  Tap on the visitor profile you wish to deactivate.
+3.  Scroll to the bottom and tap **Revoke Pass**.
+4.  Confirm the action in the security dialog.
+    *Result: The visitor is removed from the active list and security is notified.*
+
 ---
 
 ## 2. Financials
@@ -37,6 +44,14 @@
 5.  Select Payment Method (UPI, Card, Netbanking - *Simulation*).
 6.  Confirm Payment.
 7.  *Success*: The bill moves to the **History** tab and a receipt is generated.
+
+### Secure Profile Update (Cross-Channel OTP)
+1.  Go to **Profile > Personal Details**.
+2.  Change a sensitive field (e.g., **Phone Number**).
+3.  An **Email OTP** modal will appear (Security Focus Mode).
+    *Note: Navigation is disabled until verification is complete.*
+4.  Enter the OTP received on your **Email**.
+5.  Tap **Verify & Update**.
 
 ---
 
@@ -56,8 +71,11 @@
 2.  Tap **Raise Ticket** / **Contact Admin**.
 3.  Select Category (e.g., **Plumbing**).
 4.  Describe the issue (e.g., "Leaking tap in master bathroom").
-5.  Submit.
-    *Result: Ticket ID generated. Check status in the Support page.*
+5.  Select a **Preferred Date** (Calendar) and **Preferred Time** (Clock).
+    *Note: Both are mandatory for specific assistance categories.*
+6.  Attach a photo of the issue (Optional, but recommended).
+7.  Submit.
+    *Result: Ticket ID generated. Check progress with detailed "Preferred Slot" in the Support page.*
 
 ---
 

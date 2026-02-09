@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, Phone } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, MessageSquare, Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, getIconForType, ServiceRequestItem, StaffItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -63,64 +63,86 @@ export default function ServiceRequestDetailsPage({ params }: { params: Promise<
     if (request.status === "Resolved") statusColor = "bg-green-100 text-green-700"
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-background pb-24 lg:pb-8 transition-colors">
             {/* Header */}
-            <div className="sticky top-0 bg-white z-10 border-b border-gray-100 p-4">
-                <div className="flex items-center gap-3 max-w-2xl mx-auto w-full">
-                    <button onClick={() => router.back()} className="p-2 -ml-2 text-[#1a237e] hover:bg-gray-50 rounded-full">
+            <div className="sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border lg:border-none p-4 lg:p-6 lg:bg-transparent">
+                <div className="max-w-4xl mx-auto flex items-center gap-3">
+                    <button onClick={() => router.back()} className="p-2 -ml-2 text-foreground hover:bg-accent rounded-full transition-colors">
                         <ArrowLeft size={24} />
                     </button>
-                    <h1 className="text-xl font-bold text-[#1a237e]">Request Details</h1>
+                    <h1 className="text-xl font-bold text-foreground lg:text-3xl">Request Details</h1>
                 </div>
             </div>
 
-            <div className="p-4 max-w-2xl mx-auto space-y-6">
-
+            <div className="max-w-4xl mx-auto p-4 lg:p-8 space-y-6">
                 {/* Status Card */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                            <Icon size={28} />
+                <div className="bg-card p-6 rounded-3xl border border-border shadow-sm transition-colors">
+                    <div className="flex justify-between items-start mb-6">
+                        <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Request ID</p>
+                            <h2 className="text-lg font-bold text-primary font-mono">{request.id}</h2>
                         </div>
-                        <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide", statusColor)}>
+                        <span className={cn(
+                            "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors",
+                            request.status === "In Progress" ? "bg-blue-500/10 text-blue-500" :
+                                request.status === "Open" ? "bg-orange-500/10 text-orange-500" :
+                                    request.status === "Resolved" ? "bg-green-500/10 text-green-500" :
+                                        "bg-muted text-muted-foreground"
+                        )}>
                             {request.status}
                         </span>
                     </div>
 
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">{request.title}</h2>
-                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-6">
-                        <span className="font-bold text-gray-400">ID: {request.id}</span>
-                        <span>•</span>
-                        <span>{request.category}</span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-100">
-                        <div>
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Created On</p>
-                            <div className="flex items-center gap-2 text-gray-700 font-medium text-sm">
-                                <Calendar size={14} className="text-[#1a237e]" />
-                                {request.date}
+                    <div className="grid grid-cols-2 gap-4 mt-6">
+                        <div className="flex items-center gap-4 bg-muted/50 p-4 rounded-2xl border border-border">
+                            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary flex-shrink-0">
+                                <Clock size={20} />
+                            </div>
+                            <div>
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Submitted On</p>
+                                <p className="text-sm font-bold text-foreground">{request.date}</p>
                             </div>
                         </div>
-                        {request.preferredDate && (
-                            <div>
-                                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Preferred Date</p>
-                                <div className="flex items-center gap-2 text-gray-700 font-medium text-sm">
-                                    <Clock size={14} className="text-[#1a237e]" />
-                                    {request.preferredDate} {request.preferredTime ? `, ${request.preferredTime}` : ''}
+
+                        {(request.preferredDate || request.preferredTime) && (
+                            <div className="flex items-center gap-4 bg-primary/5 p-4 rounded-2xl border border-primary/20">
+                                <div className="h-10 w-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary flex-shrink-0">
+                                    <Calendar size={20} />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest">Preferred Slot</p>
+                                    <p className="text-sm font-bold text-foreground">
+                                        {request.preferredDate ? request.preferredDate.split('-').reverse().join('-') : 'Any Day'}
+                                        {request.preferredTime ? ` @ ${request.preferredTime}` : ''}
+                                    </p>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
 
+                {/* AI Analysis (If others) */}
+                {request.category === "Others" && (
+                    <div className="bg-violet-500/5 p-6 rounded-3xl border border-violet-500/20 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <BrainCircuit size={80} className="text-violet-500" />
+                        </div>
+                        <div className="flex items-center gap-2 mb-4">
+                            <BrainCircuit size={18} className="text-violet-500" />
+                            <h3 className="font-bold text-violet-500 text-sm uppercase tracking-wider">AI Assistant Analysis</h3>
+                        </div>
+                        <p className="text-sm text-foreground/80 leading-relaxed italic">
+                            "Based on the description and photo provided, this appears to be a structural maintenance requirement. I have categorized this as 'Others' and flagged it for manual review by the building engineer."
+                        </p>
+                    </div>
+                )}
                 {/* Description & Photo */}
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                    <h3 className="font-bold text-gray-900">Description</h3>
-                    <p className="text-gray-600 leading-relaxed text-sm">{request.description}</p>
+                <div className="bg-card p-6 rounded-3xl border border-border shadow-sm space-y-4">
+                    <h3 className="font-bold text-foreground">Description</h3>
+                    <p className="text-muted-foreground leading-relaxed text-sm">{request.description}</p>
 
                     {(request.photo || request.image) && (
-                        <div className="mt-4 rounded-2xl overflow-hidden border border-gray-100">
+                        <div className="mt-4 rounded-2xl overflow-hidden border border-border">
                             <img
                                 src={request.photo || request.image}
                                 alt="Request Attachment"
@@ -130,35 +152,36 @@ export default function ServiceRequestDetailsPage({ params }: { params: Promise<
                     )}
                 </div>
 
-                {/* Assigned Staff (History/Active) */}
+                {/* Assigned Staff */}
                 {staff && (
-                    <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                        <h3 className="font-bold text-gray-900 mb-4">
-                            {request.status === "Resolved" || request.status === "Closed" ? "Service Completed By" : "Assigned To"}
-                        </h3>
-
+                    <div className="bg-card p-6 rounded-3xl border border-border shadow-sm transition-colors">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Assigned Staff</p>
                         <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-lg font-bold">
+                            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary text-xl font-bold shadow-sm transition-colors">
                                 {staff.name[0]}
                             </div>
                             <div className="flex-1">
-                                <h4 className="font-bold text-gray-900">{staff.name}</h4>
-                                <p className="text-sm text-gray-500">{staff.role}</p>
+                                <h4 className="font-bold text-foreground leading-tight">{staff.name}</h4>
+                                <p className="text-xs text-muted-foreground font-medium mt-1">{staff.role}</p>
                             </div>
-                            <a href={`tel:${staff.phone}`} className="h-10 w-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 hover:bg-green-100 transition-colors">
-                                <Phone size={18} />
-                            </a>
+                            <div className="flex gap-2">
+                                <button className="h-11 w-11 bg-accent hover:bg-primary hover:text-white rounded-xl flex items-center justify-center text-foreground transition-all duration-300 shadow-sm">
+                                    <MessageSquare size={20} />
+                                </button>
+                                <button className="h-11 w-11 bg-accent hover:bg-primary hover:text-white rounded-xl flex items-center justify-center text-foreground transition-all duration-300 shadow-sm">
+                                    <Phone size={20} />
+                                </button>
+                            </div>
                         </div>
-
-                        {request.status === "Resolved" && (
-                            <div className="mt-4 p-3 bg-green-50 rounded-xl flex items-center gap-3 text-green-800 text-sm">
-                                <CheckCircle2 size={16} />
-                                <span className="font-medium">Job marked as completed successfully.</span>
-                            </div>
-                        )}
                     </div>
                 )}
 
+                {/* Timeline */}
+                <div className="pt-4 px-2">
+                    <button className="w-full py-4 border-2 border-dashed border-border rounded-2xl text-muted-foreground font-bold text-sm hover:border-primary/30 hover:text-primary transition-all active:scale-[0.98]">
+                        Withdraw Request
+                    </button>
+                </div>
             </div>
         </div>
     )

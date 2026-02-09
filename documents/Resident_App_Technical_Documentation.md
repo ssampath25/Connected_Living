@@ -24,6 +24,9 @@ The application is built with a **Mobile-First** design philosophy, mimicking th
     -   Radix UI Primitives (via `shadcn/ui` patterns)
     -   Lucide React (Iconography)
 -   **State Management:** React Hooks (`useState`, `useEffect`) + URL State
+-   **Context Providers:**
+    -   `ThemeProvider`: Handles dynamic Dark/Light theme persistent state.
+    -   `UIProvider`: Manages global interactivity locks (e.g., during OTP verification).
 -   **Data Layer:** In-memory Mock API (`src/lib/api.ts`)
 
 ### 2.2 Project Structure
@@ -36,9 +39,10 @@ src/
 │   │   ├── visitors/       # Visitor Management
 │   │   ├── amenities/      # Facility Booking
 │   │   ├── community/      # Social Features (Polls, Events)
-│   │   ├── helpdesk/       # Service Requests
-│   │   └── payments/       # Billing
-│   └── layout.tsx          # Root Layout
+│   │   ├── helpdesk/       # Service Requests & Support
+│   │   ├── payments/       # Billing & History
+│   │   └── more/           # Settings & Emergency Contacts
+│   └── layout.tsx          # Root Layout & Provider wrapping
 ├── components/             # Reusable UI Components
 │   ├── ui/                 # Atomic Components (Buttons, Inputs)
 │   ├── simple-calendar.tsx # Custom Attendance Calendar
@@ -110,13 +114,17 @@ The most complex module, handling guest access and security.
 -   **Events**: Calendar of society gatherings (Diwali Party, AGM).
 -   **Notices**: Official admin broadcasts.
 -   **Implementation**: Tabbed interface using conditional rendering.
+-   **Chat Integration**: 
+    - Flush-to-navbar layout for mobile devices.
+    - Dynamic message ID generation to prevent React key duplication errors.
 
 ### 3.5 Helpdesk & Services
-**Path:** `/helpdesk`  
-**(In Progress)**
+**Path:** `/service-requests`  
+**Files:** `src/app/(resident)/service-requests/page.tsx`
 
--   Listing of raised tickets (Plumbing, Electrical).
--   Status tracking (Open, In Progress, Closed).
+-   Listing of raised tickets (Plumbing, Electrical) with real-time status tracking.
+-   **Mandatory Scheduling**: Creation form requires separate, mandatory **Preferred Date** and **Preferred Time** inputs for optimized staffing.
+-   **AI Integration**: Special visualization for "Others" category providing AI-driven analysis of the issue description/photo.
 
 ### 3.6 Payments
 **Path:** `/payments`  
@@ -145,6 +153,7 @@ Since the backend is not yet connected, the app uses a robust **Mock API Layer**
     2.  Creates a new active visitor record.
     3.  **Crucial**: Checks if the visitor is a 'Guest'; if so, adds them to `MOCK_SAVED_VISITORS`.
 -   `calculateMonthlyStats()`: Helper utilized by the Calendar component to show days present/absent.
+-   **Unique ID Generation**: All write methods (e.g., `sendCommunityMessage`, `createCommunityEvent`) now use `Date.now() + Math.random()` logic to ensure stable React keying during high-frequency interactions.
 
 ---
 

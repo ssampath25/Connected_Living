@@ -33,6 +33,8 @@ import type {
     CreateDeliveryRequest,
     PaymentIntentRequest,
     PaymentIntentResponse,
+    CommunityEvent,
+    CreateEventRequest,
 } from "./api-types"
 
 // Re-export types for backward compatibility
@@ -102,6 +104,7 @@ export interface AmenityItem {
     iconType: "pool" | "gym" | "clubhouse" | "conference" | "tennis"
     imageGradient: string
     rules?: string[]
+    requiresApproval?: boolean
 }
 
 export interface ServiceRequestItem {
@@ -199,10 +202,12 @@ export interface CommunityEventItem {
     organizer?: string
     rsvpStatus?: "going" | "not_going" | "pending"
     price?: string
+    status?: "pending" | "approved" | "rejected"
+    creatorId?: string
 }
 
 export type InviteParams =
-    | { type: "Guest"; name: string; phone?: string; email?: string; date: string; time: string; singleEntry: boolean }
+    | { type: "Guest"; name: string; phone?: string; email?: string; date: string; time: string; singleEntry: boolean; avatar?: string }
     | { type: "Delivery"; vendor: string; name?: string; phone?: string; date: string; time?: string }
     | { type: "Cab"; driverName: string; vehicleNo: string; service: string; date: string; time?: string; model?: string }
 
@@ -244,8 +249,8 @@ export interface BookingItem {
     amenityName: string
     date: string
     slots: string[]
-    status: "Confirmed" | "Cancelled" | "Completed"
-    timestamp: number
+    status: "Confirmed" | "Cancelled" | "Completed" | "Pending" | "Rejected"
+    timestamp: number // for sorting
 }
 
 // ==========================================
@@ -483,8 +488,51 @@ export const api = {
     },
 
     // ==========================================
-    // USER PROFILE
+    // DASHBOARD & USER
     // ==========================================
+
+    getCurrentUser: async (): Promise<UserItem | undefined> => {
+        try {
+            const resident = await httpClient.get<ResidentProfile>("/auth/me")
+            return transformResidentToUser(resident)
+        } catch {
+            return undefined
+        }
+    },
+
+    getActivities: async (): Promise<ActivityItem[]> => {
+        // Return mock data for now to stabilize dashboard
+        return [
+            {
+                id: 1,
+                userId: "1",
+                title: "Maintenance Bill",
+                subtitle: "Monthly maintenance paid",
+                time: "2 hours ago",
+                iconType: "payment",
+                bg: "bg-blue-100 dark:bg-blue-900/20",
+                iconColor: "text-blue-600 dark:text-blue-400"
+            },
+            {
+                id: 2,
+                userId: "1",
+                title: "Visitor Entry",
+                subtitle: "Amazon Delivery at Gate 1",
+                time: "4 hours ago",
+                iconType: "visitor",
+                bg: "bg-green-100 dark:bg-green-900/20",
+                iconColor: "text-green-600 dark:text-green-400"
+            }
+        ]
+    },
+
+    getUnreadCount: async (): Promise<number> => {
+        return 0
+    },
+
+    getSOSStatus: async (): Promise<boolean> => {
+        return false
+    },
 
     getUserProfile: async (): Promise<UserItem | undefined> => {
         try {
@@ -527,6 +575,14 @@ export const api = {
         } catch {
             return undefined
         }
+    },
+    deleteFrequentVisitor: async (id: string): Promise<boolean> => {
+        const index = MOCK_FREQUENT_VISITORS.findIndex(v => v.id === id)
+        if (index !== -1) {
+            MOCK_FREQUENT_VISITORS.splice(index, 1)
+            return new Promise(resolve => setTimeout(() => resolve(true), 800))
+        }
+        return false
     },
 
     deleteFamilyMember: async (id: string): Promise<boolean> => {
@@ -642,6 +698,9 @@ export const api = {
                     name: visitorName,
                     phone: visitorPhone,
                 }],
+                type: data.type,
+                relation: data.type === 'Guest' ? 'Friend' : data.type, // Default relation
+                avatar: data.avatar
             }
             const group = await httpClient.post<VisitorGroup>("/visitors/groups", request)
             return {
@@ -1144,6 +1203,8 @@ export const api = {
 // Icon Helper
 // ==========================================
 
+
+// --- Helper to map string types to Icons ---
 export const getIconForType = (type: string) => {
     switch (type) {
         case "payment": return CreditCard
@@ -1182,3 +1243,24 @@ export const getIconForType = (type: string) => {
         default: return AlertTriangle
     }
 }
+
+// ==========================================
+// COMMUNITY EVENTS
+// ==========================================
+
+export const createCommunityEvent = async (data: CreateEventRequest): Promise<CommunityEvent> => {
+    return httpClient.post<CommunityEvent>("/events", data)
+}
+
+export const getCommunityEvents = async (): Promise<CommunityEvent[]> => {
+    return httpClient.get<CommunityEvent[]>("/events")
+}
+
+export const getMyEvents = async (): Promise<CommunityEvent[]> => {
+    return httpClient.get<CommunityEvent[]>("/events/my")
+}
+
+export const getEventDetails = async (id: string): Promise<CommunityEvent> => {
+    return httpClient.get<CommunityEvent>(`/events/${id}`)
+}
+

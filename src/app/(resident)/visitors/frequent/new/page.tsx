@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save, User, Calendar, Clock, IdCard } from "lucide-react"
 import { api } from "@/lib/api"
@@ -15,6 +15,7 @@ export default function NewFrequentVisitorPage() {
     const [type, setType] = useState<"Guest" | "Delivery" | "Cab" | "Staff">("Staff")
     const [relation, setRelation] = useState("")
     const [validUntil, setValidUntil] = useState("")
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     // Optional Time Slot
     const [hasTimeSlot, setHasTimeSlot] = useState(false)
@@ -48,7 +49,7 @@ export default function NewFrequentVisitorPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50/50 pb-24">
+        <div className="min-h-screen bg-gray-50/50">
             {/* Header */}
             <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 border-b border-gray-100 p-4">
                 <div className="max-w-md mx-auto flex items-center gap-3">
@@ -87,7 +88,7 @@ export default function NewFrequentVisitorPage() {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="e.g. Sunita Helper"
-                                    className="flex-1 bg-transparent outline-none text-gray-900 font-semibold placeholder:text-gray-300"
+                                    className="flex-1 bg-transparent outline-none text-black font-semibold placeholder:text-gray-400"
                                 />
                             </div>
                         </div>
@@ -101,7 +102,7 @@ export default function NewFrequentVisitorPage() {
                                 <select
                                     value={type}
                                     onChange={(e) => setType(e.target.value as any)}
-                                    className="w-full mt-2 bg-gray-50 p-2 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full mt-2 bg-white p-2 rounded-lg text-sm font-semibold text-black outline-none focus:ring-2 focus:ring-indigo-100"
                                 >
                                     <option value="Staff">Staff</option>
                                     <option value="Cab">Daily Cab</option>
@@ -116,7 +117,7 @@ export default function NewFrequentVisitorPage() {
                                     value={relation}
                                     onChange={(e) => setRelation(e.target.value)}
                                     placeholder="e.g. Maid"
-                                    className="w-full mt-2 bg-gray-50 p-2 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-100"
+                                    className="w-full mt-2 bg-white p-2 rounded-lg text-sm font-semibold text-black outline-none focus:ring-2 focus:ring-indigo-100"
                                 />
                             </div>
                         </div>
@@ -129,12 +130,26 @@ export default function NewFrequentVisitorPage() {
                                 <Calendar size={14} />
                                 Valid Until
                             </label>
-                            <input
-                                type="date"
-                                value={validUntil}
-                                onChange={(e) => setValidUntil(e.target.value)}
-                                className="w-full mt-2 bg-gray-50 p-3 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-indigo-100"
-                            />
+                            <div
+                                className="relative group mt-2"
+                                onClick={() => dateInputRef.current?.showPicker()}
+                            >
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={validUntil ? validUntil.split('-').reverse().join('-') : ''}
+                                    placeholder="DD-MM-YYYY"
+                                    className="w-full bg-white p-3 rounded-xl text-sm font-semibold text-black outline-none focus:ring-2 focus:ring-indigo-100 pointer-events-none"
+                                />
+                                <input
+                                    type="date"
+                                    ref={dateInputRef}
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={validUntil}
+                                    onChange={(e) => setValidUntil(e.target.value)}
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                />
+                            </div>
                             <p className="text-[10px] text-gray-400 mt-2">
                                 The code will stop working after this date.
                             </p>
@@ -176,27 +191,25 @@ export default function NewFrequentVisitorPage() {
                 </div>
             </div>
 
-            {/* Sticky Save Button */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100">
-                <div className="max-w-md mx-auto">
-                    <button
-                        onClick={handleSubmit}
-                        disabled={loading}
-                        className="w-full h-14 bg-[#1a237e] text-white rounded-xl font-bold text-lg shadow-xl shadow-indigo-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
-                    >
-                        {loading ? (
-                            <>
-                                <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                <span>Creating Pass...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Save size={20} />
-                                <span>Create Pass</span>
-                            </>
-                        )}
-                    </button>
-                </div>
+            {/* Static Save Button */}
+            <div className="p-4 bg-white border-t border-gray-100 max-w-md mx-auto">
+                <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="w-full h-14 bg-[#1a237e] text-white rounded-xl font-bold text-lg shadow-xl shadow-indigo-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                >
+                    {loading ? (
+                        <>
+                            <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            <span>Creating Pass...</span>
+                        </>
+                    ) : (
+                        <>
+                            <Save size={20} />
+                            <span>Create Pass</span>
+                        </>
+                    )}
+                </button>
             </div>
         </div>
     )

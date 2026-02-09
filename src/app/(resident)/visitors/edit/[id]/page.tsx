@@ -25,6 +25,7 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
     const [relation, setRelation] = useState("")
     const [avatar, setAvatar] = useState("")
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const inviteDateRef = useRef<HTMLInputElement>(null)
 
     // Instant Invite Logic
     const [inviteDate, setInviteDate] = useState("")
@@ -96,35 +97,35 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white p-6">
-                <Skeleton className="h-10 w-10 rounded-full mb-6" />
+            <div className="min-h-screen bg-background p-6">
+                <Skeleton className="h-10 w-10 rounded-full mb-6 bg-accent" />
                 <div className="space-y-6">
-                    <Skeleton className="h-40 w-full rounded-2xl" />
-                    <Skeleton className="h-24 w-full rounded-2xl" />
+                    <Skeleton className="h-40 w-full rounded-2xl bg-accent" />
+                    <Skeleton className="h-24 w-full rounded-2xl bg-accent" />
                 </div>
             </div>
         )
     }
 
     if (!visitor) {
-        return <div className="p-6 text-center text-gray-500">Visitor not found</div>
+        return <div className="p-6 text-center text-muted-foreground bg-background min-h-screen flex items-center justify-center">Visitor not found</div>
     }
 
     return (
-        <div className="min-h-screen bg-gray-50/50 pb-24">
+        <div className="min-h-screen bg-background pb-24 transition-colors">
             {/* Header */}
-            <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 border-b border-gray-100 p-4">
+            <div className="sticky top-0 bg-card/80 backdrop-blur-md z-10 border-b border-border p-4 transition-colors">
                 <div className="max-w-md mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => router.back()} className="p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                        <button onClick={() => router.back()} className="p-2 -ml-2 text-foreground hover:bg-accent rounded-full transition-colors">
                             <ArrowLeft size={20} />
                         </button>
-                        <h1 className="text-lg font-bold text-gray-900">Visitors</h1>
+                        <h1 className="text-lg font-bold text-foreground">Visitors</h1>
                     </div>
                     {!isEditing && (
                         <button
                             onClick={() => setIsEditing(true)}
-                            className="p-2 text-[#1a237e] bg-indigo-50 hover:bg-indigo-100 rounded-full transition-colors"
+                            className="p-2 text-primary bg-primary/10 hover:bg-primary/20 rounded-full transition-colors"
                         >
                             <Pencil size={20} />
                         </button>
@@ -135,11 +136,11 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
             <div className="max-w-md mx-auto p-4 space-y-6">
 
                 {/* 1. Editable Contact Details */}
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col items-center">
+                <div className="bg-card p-6 rounded-3xl shadow-sm border border-border flex flex-col items-center transition-colors">
                     <div className="relative group">
                         <div
                             onClick={() => isEditing && fileInputRef.current?.click()}
-                            className={`h-24 w-24 bg-indigo-50 rounded-full flex items-center justify-center text-[#1a237e] text-3xl font-bold mb-6 overflow-hidden relative shadow-sm border-4 border-white transition-all ${isEditing ? 'cursor-pointer hover:opacity-90 ring-4 ring-indigo-50' : ''}`}
+                            className={`h-24 w-24 bg-accent rounded-full flex items-center justify-center text-primary text-3xl font-bold mb-6 overflow-hidden relative shadow-sm border-4 border-card transition-all ${isEditing ? 'cursor-pointer hover:opacity-90 ring-4 ring-primary/10' : ''}`}
                         >
                             {(avatar && avatar.includes('/')) || (avatar && avatar.startsWith('blob:')) ? (
                                 <img src={avatar} alt={name} className="w-full h-full object-cover" />
@@ -164,34 +165,34 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
 
                     <div className="w-full space-y-4">
                         <div className="space-y-1 text-left">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Name</label>
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Name</label>
                             {isEditing ? (
                                 <input
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
-                                    className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#1a237e]/20 transition-all placeholder:font-normal"
+                                    className="w-full p-4 bg-accent/50 rounded-2xl font-bold text-foreground border border-border outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:font-normal"
                                     placeholder="Visitor Name"
                                 />
                             ) : (
-                                <div className="w-full p-4 bg-gray-50/50 rounded-2xl font-bold text-gray-900 border border-transparent">
+                                <div className="w-full p-4 bg-accent/30 rounded-2xl font-bold text-foreground border border-transparent">
                                     {name}
                                 </div>
                             )}
                         </div>
 
                         <div className="space-y-1 text-left">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Relation / Type</label>
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Relation / Type</label>
                             {isEditing ? (
                                 <input
                                     type="text"
                                     value={relation}
                                     onChange={(e) => setRelation(e.target.value)}
-                                    className="w-full p-4 bg-gray-50 rounded-2xl font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#1a237e]/20 transition-all placeholder:font-normal"
+                                    className="w-full p-4 bg-accent/50 rounded-2xl font-semibold text-foreground border border-border outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:font-normal"
                                     placeholder="e.g. Friend, Brother"
                                 />
                             ) : (
-                                <div className="w-full p-4 bg-gray-50/50 rounded-2xl font-semibold text-gray-700 border border-transparent">
+                                <div className="w-full p-4 bg-accent/30 rounded-2xl font-semibold text-foreground/80 border border-transparent">
                                     {relation || "N/A"}
                                 </div>
                             )}
@@ -199,33 +200,33 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1 text-left">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Phone</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Phone</label>
                                 {isEditing ? (
                                     <input
                                         type="tel"
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value)}
-                                        className="w-full p-4 bg-gray-50 rounded-2xl font-medium text-gray-700 outline-none focus:ring-2 focus:ring-[#1a237e]/20 transition-all placeholder:font-normal"
+                                        className="w-full p-4 bg-accent/50 rounded-2xl font-medium text-foreground border border-border outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:font-normal"
                                         placeholder="+91..."
                                     />
                                 ) : (
-                                    <div className="w-full p-4 bg-gray-50/50 rounded-2xl font-medium text-gray-700 border border-transparent">
+                                    <div className="w-full p-4 bg-accent/30 rounded-2xl font-medium text-foreground/80 border border-transparent">
                                         {phone || "-"}
                                     </div>
                                 )}
                             </div>
                             <div className="space-y-1 text-left">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Email</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider ml-1">Email</label>
                                 {isEditing ? (
                                     <input
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        className="w-full p-4 bg-gray-50 rounded-2xl font-medium text-gray-700 outline-none focus:ring-2 focus:ring-[#1a237e]/20 transition-all placeholder:font-normal"
+                                        className="w-full p-4 bg-accent/50 rounded-2xl font-medium text-foreground border border-border outline-none focus:ring-2 focus:ring-primary/20 transition-all placeholder:font-normal"
                                         placeholder="Optional"
                                     />
                                 ) : (
-                                    <div className="w-full p-4 bg-gray-50/50 rounded-2xl font-medium text-gray-700 border border-transparent truncate">
+                                    <div className="w-full p-4 bg-accent/30 rounded-2xl font-medium text-foreground/80 border border-transparent truncate">
                                         {email || "-"}
                                     </div>
                                 )}
@@ -237,35 +238,46 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
                 {/* Attendance History Removed */}
 
                 {/* 3. Instant Invite Card */}
-                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 p-6 rounded-3xl shadow-sm border border-indigo-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100 rounded-full blur-3xl -mr-10 -mt-10 opacity-50 pointer-events-none" />
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-6 rounded-3xl shadow-sm border border-primary/20 relative overflow-hidden transition-colors">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-10 -mt-10 opacity-30 pointer-events-none" />
 
                     <div className="relative z-10">
-                        <div className="flex items-center gap-2 mb-4 text-[#1a237e]">
-                            <Sparkles size={20} className="text-indigo-600" />
+                        <div className="flex items-center gap-2 mb-4 text-primary">
+                            <Sparkles size={20} className="text-primary" />
                             <h3 className="font-bold text-lg">Instant Invite</h3>
                         </div>
-                        <p className="text-sm text-gray-600 mb-6">
+                        <p className="text-sm text-muted-foreground mb-6">
                             Send a one-time entry pass for a specific time.
                         </p>
 
                         <div className="grid grid-cols-2 gap-4 mb-6">
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Date</label>
-                                <input
-                                    type="date"
-                                    value={inviteDate}
-                                    onChange={(e) => setInviteDate(e.target.value)}
-                                    className="w-full p-3 bg-white rounded-xl border border-indigo-100 text-sm font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-200"
-                                />
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block ml-1">Date</label>
+                                <div className="relative group" onClick={() => inviteDateRef.current?.showPicker()}>
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={inviteDate ? inviteDate.split('-').reverse().join('-') : ''}
+                                        placeholder="DD-MM-YYYY"
+                                        className="w-full p-3 bg-card rounded-xl border border-border text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20 pointer-events-none transition-colors"
+                                    />
+                                    <input
+                                        type="date"
+                                        ref={inviteDateRef}
+                                        min={new Date().toISOString().split('T')[0]}
+                                        value={inviteDate}
+                                        onChange={(e) => setInviteDate(e.target.value)}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Time</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block ml-1">Time</label>
                                 <input
                                     type="time"
                                     value={inviteTime}
                                     onChange={(e) => setInviteTime(e.target.value)}
-                                    className="w-full p-3 bg-white rounded-xl border border-indigo-100 text-sm font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-200"
+                                    className="w-full p-3 bg-card rounded-xl border border-border text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-colors"
                                 />
                             </div>
                         </div>
@@ -273,7 +285,7 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
                         <button
                             onClick={handleInvite}
                             disabled={inviting}
-                            className="w-full py-4 bg-[#1a237e] text-white rounded-xl font-bold shadow-lg shadow-indigo-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                            className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70"
                         >
                             {inviting ? (
                                 <>
@@ -292,7 +304,7 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
 
                 {/* Feedback Toast */}
                 {notification && (
-                    <div className={`fixed bottom-24 left-4 right-4 p-4 rounded-xl text-white text-center text-sm font-medium shadow-lg animate-in fade-in slide-in-from-bottom-4 ${notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+                    <div className={`fixed bottom-24 left-4 right-4 p-4 rounded-xl text-white text-center text-sm font-medium shadow-lg animate-in fade-in slide-in-from-bottom-4 transition-colors ${notification.type === 'success' ? 'bg-green-600' : 'bg-destructive'
                         }`}>
                         {notification.message}
                     </div>
@@ -303,7 +315,7 @@ export default function EditSavedVisitorPage({ params }: { params: Promise<{ id:
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="w-full h-14 bg-[#1a237e] text-white rounded-xl font-bold text-lg shadow-xl shadow-indigo-900/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
+                        className="w-full h-14 bg-primary text-primary-foreground rounded-xl font-bold text-lg shadow-xl shadow-primary/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:scale-100"
                     >
                         {saving ? (
                             <>

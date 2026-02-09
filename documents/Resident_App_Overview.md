@@ -36,7 +36,8 @@ Book shared community facilities.
 ### 5. Service Requests (Help & Support)
 Report issues and track maintenance.
 - **Raise Ticket**: Submit a complaint (e.g., Plumbing, Electrical) with photos and description.
-- **Track Status**: Monitor the progress of tickets from "Open" to "Resolved".
+- **Preferred Scheduling**: Choose both a mandatory **Date** and **Time** for your appointment.
+- **Track Status**: Monitor the progress of tickets from "Open" to "Resolved" with detailed staff assignments and AI analysis summaries.
 - **Emergency Contacts**: Quick access to security and facility manager contacts.
 
 ### 6. My Vehicles
@@ -45,7 +46,7 @@ Manage registered vehicles for gate access.
 - **Add Vehicle**: Request approval for a new vehicle by providing registration number and model.
 
 ### 7. Community & Smart Hub
-- **Community Chat**: Connect with neighbors (if enabled).
+- **Community Chat**: Connect with neighbors with a mobile-optimized, flush-to-navbar interface and unique message tracking.
 - **Notices**: Read official announcements from the management committee.
 - **Smart Hub**: Control smart home devices (Lights, AC, Locks) directly from the app.
 
@@ -56,4 +57,8 @@ An intelligent assistant to help you navigate the app.
 
 ## Technical Notes
 - **Platform**: Built as a Progressive Web App (PWA) compatible with iOS and Android.
-- **Security**: Role-Based Access Control (RBAC) ensures residents only access their own data.
+- **Appearance**: Supports dynamic **Dark and Light modes** with a premium "Deep Navy" slate aesthetic.
+- **Security**:
+    - Role-Based Access Control (RBAC).
+    - **Cross-Channel Verification**: Phone number updates require Email OTP; Email updates require Phone OTP.
+    - **Interactivity Blocking**: Navigation and global actions are suspended during critical updates (OTP/Focus mode).

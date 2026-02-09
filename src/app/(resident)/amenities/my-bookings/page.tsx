@@ -29,13 +29,13 @@ export default function MyBookingsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-white pb-24 lg:pb-8 p-4 lg:p-6 max-w-4xl mx-auto space-y-6">
+            <div className="min-h-screen bg-background pb-24 lg:pb-8 p-4 lg:p-6 max-w-4xl mx-auto space-y-6 flex flex-col transition-colors">
                 <div className="flex items-center gap-3 mb-6">
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <Skeleton className="h-8 w-48" />
                 </div>
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex gap-4">
+                    <div key={i} className="bg-card border border-border rounded-2xl p-6 shadow-sm flex gap-4">
                         <Skeleton className="h-16 w-16 rounded-xl" />
                         <div className="space-y-2 flex-1">
                             <Skeleton className="h-5 w-1/3" />
@@ -52,18 +52,18 @@ export default function MyBookingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white pb-24 lg:pb-8">
+        <div className="min-h-screen bg-background pb-24 lg:pb-8 transition-colors">
             {/* Header */}
-            <div className="sticky top-0 bg-white z-10 border-b border-gray-100 lg:border-none p-4 lg:p-6 lg:bg-transparent">
+            <div className="sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border lg:border-none p-4 lg:p-6 lg:bg-transparent">
                 <div className="flex items-center justify-between max-w-4xl mx-auto w-full">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => router.back()} className="p-2 -ml-2 text-[#1a237e] hover:bg-gray-50 rounded-full transition-colors">
+                        <button onClick={() => router.back()} className="p-2 -ml-2 text-foreground hover:bg-accent rounded-full transition-colors">
                             <ArrowLeft size={24} />
                         </button>
-                        <h1 className="text-xl font-bold text-[#1a237e] lg:text-3xl">My Bookings</h1>
+                        <h1 className="text-xl font-bold text-foreground lg:text-3xl">My Bookings</h1>
                     </div>
                     {bookings.length > 0 && (
-                        <button onClick={toggleSort} className="flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-[#1a237e] bg-gray-50 px-3 py-1.5 rounded-lg transition-colors">
+                        <button onClick={toggleSort} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary bg-accent/50 px-3 py-1.5 rounded-lg transition-colors">
                             <ArrowUpDown size={14} />
                             <span>{sortDesc ? "Newest First" : "Oldest First"}</span>
                         </button>
@@ -89,11 +89,11 @@ export default function MyBookingsPage() {
                             const Icon = getIconForType(iconType) || Calendar
 
                             return (
-                                <Link href={`/amenities/my-bookings/${booking.id}`} key={booking.id} className="group block bg-white border border-gray-100 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all">
+                                <Link href={`/amenities/my-bookings/${booking.id}`} key={booking.id} className="group block bg-card border border-border rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-primary/20 transition-all relative">
                                     <div className="flex flex-col sm:flex-row gap-5">
                                         {/* Icon Box */}
                                         <div className="flex-shrink-0">
-                                            <div className="h-16 w-16 rounded-2xl bg-indigo-50 flex items-center justify-center text-[#1a237e] group-hover:bg-[#1a237e] group-hover:text-white transition-colors">
+                                            <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                                                 <Icon size={32} />
                                             </div>
                                         </div>
@@ -102,17 +102,18 @@ export default function MyBookingsPage() {
                                         <div className="flex-1 space-y-3">
                                             <div className="flex justify-between items-start">
                                                 <div>
-                                                    <h3 className="text-lg font-bold text-gray-900 leading-tight">{booking.amenityName}</h3>
-                                                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                                    <h3 className="text-lg font-bold text-foreground leading-tight group-hover:text-primary transition-colors">{booking.amenityName}</h3>
+                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                                                         <Calendar size={14} />
                                                         <span>{booking.date}</span>
                                                     </div>
                                                 </div>
                                                 <span className={cn(
-                                                    "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide",
-                                                    booking.status === "Confirmed" ? "bg-green-100 text-green-700" :
-                                                        booking.status === "Completed" ? "bg-gray-100 text-gray-600" :
-                                                            "bg-red-100 text-red-700"
+                                                    "px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                                    booking.status === "Confirmed" ? "bg-green-500/10 text-green-500" :
+                                                        booking.status === "Pending" ? "bg-orange-500/10 text-orange-500" :
+                                                            booking.status === "Completed" ? "bg-muted text-muted-foreground" :
+                                                                "bg-destructive/10 text-destructive"
                                                 )}>
                                                     {booking.status}
                                                 </span>
@@ -121,18 +122,34 @@ export default function MyBookingsPage() {
                                             {/* Slots Chips */}
                                             <div className="flex flex-wrap gap-2">
                                                 {booking.slots.map(slot => (
-                                                    <span key={slot} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
-                                                        <Clock size={12} className="text-gray-400" />
+                                                    <span key={slot} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent/50 border border-border text-xs font-semibold text-foreground">
+                                                        <Clock size={12} className="text-muted-foreground" />
                                                         {slot}
                                                     </span>
                                                 ))}
                                             </div>
 
-                                            {/* Meta/Price placeholder if needed */}
-                                            <div className="pt-2 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
-                                                <span>Booking ID: {booking.id}</span>
-                                                {booking.status === "Confirmed" && (
-                                                    <span className="text-red-500 font-semibold group-hover:underline">View Ticket</span>
+                                            {/* Footer Actions */}
+                                            <div className="pt-2 border-t border-border flex justify-between items-center">
+                                                <span className="text-xs text-muted-foreground">ID: {booking.id}</span>
+
+                                                {(booking.status === "Confirmed" || booking.status === "Pending") && (
+                                                    <div className="flex items-center gap-3">
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.preventDefault()
+                                                                e.stopPropagation()
+                                                                if (confirm("Cancel this booking?")) {
+                                                                    await api.cancelBooking(booking.id)
+                                                                    setBookings(prev => prev.map(b => b.id === booking.id ? { ...b, status: "Cancelled" } : b))
+                                                                }
+                                                            }}
+                                                            className="text-xs font-semibold text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                        <span className="text-xs text-primary font-semibold group-hover:underline">View Ticket</span>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

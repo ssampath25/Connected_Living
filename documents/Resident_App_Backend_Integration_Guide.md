@@ -3,7 +3,7 @@
 **For:** Backend Development Team  
 **From:** Frontend Team  
 **Status:** High Priority  
-**Purpose:** This document outlines the required REST API endpoints to make the "Connected Living" Resident App fully functional. The frontend currently runs on a mock implementation (`src/lib/api.ts`), and we need these real endpoints to go live.
+**Purpose:** This document outlines the required REST API endpoints to make the "Connected Living" Resident App fully functional. The frontend currently runs on a mock implementation (`src/lib/api.ts`). This guide reflects the dynamic requirements for Service Requests, Community tracking, and secure Profile updates.
 
 ---
 
@@ -25,6 +25,7 @@
       "error": { "code": "AUTH_FAILED", "message": "Invalid OTP" }
     }
     ```
+-   **ID Standard**: Use UUID v4 for all new resource creations (Community Messages, Events, Service Requests) to ensure React key stability.
 
 ---
 
@@ -47,6 +48,12 @@
       "user": { "id": "U-001", "name": "Vikram", "role": "Resident", "unitId": "A-101" }
     }
     ```
+
+### 2.3 Profile Verification (Cross-Channel)
+*   **Security Context**: Navigation is blocked on the frontend while these are active.
+*   **Trigger**: Updating sensitive profile fields.
+*   **Post Update Phone**: `POST /auth/send-otp?target=email` (Send OTP to existing email to verify phone change).
+*   **Post Update Email**: `POST /auth/send-otp?target=phone` (Send OTP to existing phone to verify email change).
 
 ---
 
@@ -103,6 +110,11 @@
 *   **Response:** List of staff (Maids, Drivers).
     *   **Fields:** `validUntil` (Date), `isActive` (Bool), `attendance` (Array or link to sub-resource).
 
+### 4.6 Revoke Visitor Pass (New)
+*   **Endpoint**: `DELETE /visitors/frequent/:id`
+*   **Purpose**: Deactivate a staff/frequent guest pass.
+*   **Response**: `{ "success": true, "message": "Pass revoked" }`
+
 ### 4.5 Staff Attendance
 *   **Endpoint:** `GET /visitors/frequent/:id/attendance`
 *   **Query:** `?month=02&year=2024`
@@ -115,12 +127,28 @@
 ### 5.1 Service Requests (Helpdesk)
 *   **GET** `/service-requests`: List my tickets.
 *   **POST** `/service-requests`: Create new ticket.
-    *   **Body:** `{ "category": "Plumber", "description": "Leaky tap", "urgency": "High", "photoUrl": "..." }`
+    *   **Body**: 
+        ```json
+        { 
+          "category": "Plumber", 
+          "description": "Leaky tap", 
+          "urgency": "High", 
+          "preferredDate": "2024-02-12",
+          "preferredTime": "11:00 AM",
+          "photoUrl": "..." 
+        }
+        ```
+    *   **Constraint**: `preferredDate` and `preferredTime` are mandatory unless category is "Others".
 
 ### 5.2 Amenities Booking
 *   **GET** `/amenities`: List all (Pool, Gym) with status.
+    *   **Response**: List of `AmenityItem`, including `requiresApproval` flag.
 *   **POST** `/amenities/book`:
-    *   **Body:** `{ "amenityId": "pool", "date": "2024-02-10", "slot": "07:00 AM" }`
+    *   **Body:** `{ "amenityId": "pool", "date": "2024-02-10", "slots": ["07:00 AM"] }`
+    *   **Logic (Approval Workflow):**
+        *   If amenity `requiresApproval` is `true` (Club House, Conference), status = **Pending**.
+        *   Otherwise, status = **Confirmed**.
+    *   **Response**: `{ "success": true, "bookingId": "...", "status": "Pending" | "Confirmed" }`
 
 ### 5.3 Payments
 *   **GET** `/payments`: List pending and past payments.

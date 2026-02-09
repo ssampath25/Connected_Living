@@ -100,21 +100,21 @@ export default function VehiclesPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-[#1a237e]" />
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-24">
+        <div className="min-h-screen bg-background pb-24">
             {/* Header */}
-            <div className="bg-white p-4 flex items-center justify-between shadow-sm sticky top-0 z-10">
-                <button onClick={() => router.back()} className="p-2 -ml-2 text-[#1a237e]">
+            <div className="bg-card p-4 flex items-center justify-between shadow-sm sticky top-0 z-10 border-b border-border">
+                <button onClick={() => router.back()} className="p-2 -ml-2 text-primary">
                     <ArrowLeft size={24} />
                 </button>
-                <h1 className="text-xl font-bold text-[#1a237e]">My Vehicles</h1>
-                <button onClick={() => handleOpenModal()} className="p-2 -mr-2 text-[#1a237e] bg-indigo-50 rounded-full h-10 w-10 flex items-center justify-center">
+                <h1 className="text-xl font-bold text-primary">My Vehicles</h1>
+                <button onClick={() => handleOpenModal()} className="p-2 -mr-2 text-primary bg-primary/10 rounded-full h-10 w-10 flex items-center justify-center">
                     <Plus size={24} />
                 </button>
             </div>
@@ -126,7 +126,7 @@ export default function VehiclesPage() {
                         {/* Status/Category Badge */}
                         <div className={cn(
                             "absolute top-0 left-0 px-3 py-1 rounded-br-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1",
-                            vehicle.category === "EV" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                            vehicle.category === "EV" ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-500" : "bg-muted text-muted-foreground"
                         )}>
                             {vehicle.category === "EV" ? <Zap size={12} fill="currentColor" /> : <Fuel size={12} />}
                             {vehicle.category === "EV" ? "Electric" : "Petrol/Diesel"}
@@ -134,10 +134,10 @@ export default function VehiclesPage() {
 
                         {/* Top Actions */}
                         <div className="absolute top-3 right-3 flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleOpenModal(vehicle)} className="p-2 text-indigo-600 bg-indigo-50 rounded-full hover:bg-indigo-100">
+                            <button onClick={() => handleOpenModal(vehicle)} className="p-2 text-primary bg-primary/10 rounded-full hover:bg-primary/20">
                                 <Edit2 size={16} />
                             </button>
-                            <button onClick={() => handleDelete(vehicle.id)} className="p-2 text-red-600 bg-red-50 rounded-full hover:bg-red-100">
+                            <button onClick={() => handleDelete(vehicle.id)} className="p-2 text-destructive bg-destructive/10 rounded-full hover:bg-destructive/20">
                                 <Trash2 size={16} />
                             </button>
                         </div>
@@ -150,21 +150,21 @@ export default function VehiclesPage() {
                                 {getVehicleIcon(vehicle.type)}
                             </div>
                             <div>
-                                <h3 className="font-bold text-gray-900 text-lg leading-tight">{vehicle.model}</h3>
-                                <p className="text-sm text-gray-500 font-mono mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 inline-block">
+                                <h3 className="font-bold text-foreground text-lg leading-tight">{vehicle.model}</h3>
+                                <p className="text-sm text-muted-foreground font-mono mt-1 bg-muted px-2 py-0.5 rounded border border-border inline-block">
                                     {vehicle.registrationNumber}
                                 </p>
-                                {vehicle.color && <p className="text-xs text-gray-400 mt-1 capitalize">{vehicle.color} • {vehicle.type}</p>}
+                                {vehicle.color && <p className="text-xs text-muted-foreground mt-1 capitalize">{vehicle.color} • {vehicle.type}</p>}
                             </div>
                         </div>
                     </div>
                 ))}
 
                 {vehicles.length === 0 && (
-                    <div className="text-center py-12 text-gray-400 col-span-full">
+                    <div className="text-center py-12 text-muted-foreground col-span-full">
                         <Car size={48} className="mx-auto mb-4 opacity-50" />
                         <p>No vehicles registered yet.</p>
-                        <Button onClick={() => handleOpenModal()} variant="outline" className="mt-4">Add Vehicle</Button>
+                        <Button onClick={() => handleOpenModal()} variant="outline" className="mt-4 border-border text-foreground hover:bg-accent">Add Vehicle</Button>
                     </div>
                 )}
             </div>
@@ -172,12 +172,12 @@ export default function VehiclesPage() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl">
+                    <div className="bg-card rounded-2xl w-full max-w-md p-6 shadow-xl border border-border">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-bold text-[#1a237e]">
+                            <h3 className="text-xl font-bold text-primary">
                                 {editingId ? "Edit Vehicle" : "Add Vehicle"}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                                 <X size={24} />
                             </button>
                         </div>
@@ -189,7 +189,7 @@ export default function VehiclesPage() {
                                     onClick={() => setFormData({ ...formData, type: "Car" })}
                                     className={cn(
                                         "p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all",
-                                        formData.type === "Car" ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-gray-100 hover:border-gray-200 text-gray-500"
+                                        formData.type === "Car" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-border/80 text-muted-foreground"
                                     )}
                                 >
                                     <Car size={28} />
@@ -199,7 +199,7 @@ export default function VehiclesPage() {
                                     onClick={() => setFormData({ ...formData, type: "Bike" })}
                                     className={cn(
                                         "p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all",
-                                        formData.type === "Bike" ? "border-orange-500 bg-orange-50 text-orange-700" : "border-gray-100 hover:border-gray-200 text-gray-500"
+                                        formData.type === "Bike" ? "border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-500" : "border-border hover:border-border/80 text-muted-foreground"
                                     )}
                                 >
                                     <Bike size={28} />
@@ -208,12 +208,12 @@ export default function VehiclesPage() {
                             </div>
 
                             {/* Category Selection */}
-                            <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <div className="flex bg-muted p-1 rounded-lg">
                                 <button
                                     onClick={() => setFormData({ ...formData, category: "ICE" })}
                                     className={cn(
                                         "flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
-                                        formData.category === "ICE" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                                        formData.category === "ICE" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     <Fuel size={14} />
@@ -223,7 +223,7 @@ export default function VehiclesPage() {
                                     onClick={() => setFormData({ ...formData, category: "EV" })}
                                     className={cn(
                                         "flex-1 py-2 text-sm font-medium rounded-md transition-all flex items-center justify-center gap-2",
-                                        formData.category === "EV" ? "bg-white text-green-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                                        formData.category === "EV" ? "bg-card text-green-700 dark:text-green-500 shadow-sm" : "text-muted-foreground hover:text-foreground"
                                     )}
                                 >
                                     <Zap size={14} />
@@ -232,36 +232,39 @@ export default function VehiclesPage() {
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Vehicle Model</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Vehicle Model</label>
                                 <Input
                                     placeholder="e.g. Tata Nexon, Honda City"
                                     value={formData.model}
                                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                                    className="bg-muted border-border"
                                 />
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Registration Number</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Registration Number</label>
                                 <Input
                                     placeholder="e.g. KA 01 AB 1234"
                                     value={formData.registrationNumber}
                                     onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value.toUpperCase() })}
+                                    className="bg-muted border-border"
                                 />
                                 {formData.category === "EV" && (
-                                    <p className="text-xs text-gray-400 mt-1">* May differ for some EVs</p>
+                                    <p className="text-xs text-muted-foreground mt-1">* May differ for some EVs</p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1 block">Color (Optional)</label>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Color (Optional)</label>
                                 <Input
                                     placeholder="e.g. Silky Silver"
                                     value={formData.color || ""}
                                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                    className="bg-muted border-border"
                                 />
                             </div>
 
-                            <Button onClick={handleSave} className="w-full bg-[#1a237e] hover:bg-[#151b60] mt-4" disabled={loadingAction || !formData.registrationNumber || !formData.model}>
+                            <Button onClick={handleSave} className="w-full bg-primary hover:bg-primary/90 mt-4 text-white" disabled={loadingAction || !formData.registrationNumber || !formData.model}>
                                 {loadingAction ? <Loader2 className="animate-spin" /> : (editingId ? "Save Vehicle" : "Add Vehicle")}
                             </Button>
                         </div>

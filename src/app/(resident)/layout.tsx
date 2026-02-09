@@ -7,7 +7,7 @@ export default function ResidentLayout({
     children: React.ReactNode
 }) {
     return (
-        <div className="min-h-screen bg-gray-50 flex">
+        <div className="min-h-screen bg-background flex">
             {/* Sidebar for Desktop */}
             <ResidentSidebar />
 

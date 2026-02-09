@@ -65,6 +65,9 @@ export interface CreateVisitorGroupRequest {
     expectedFrom: string;
     expectedTo: string;
     visitors: { name: string; phone?: string; vehicleNumber?: string }[];
+    type?: string;
+    relation?: string;
+    avatar?: string;
 }
 
 export interface RecurringStaff {
@@ -302,6 +305,30 @@ export interface EvBooking {
     energyUsed?: number;
     totalAmount?: number;
 }
+
+// --- Events ---
+export interface CommunityEvent {
+    id: string;
+    title: string;
+    description?: string;
+    eventDate: string;
+    location: string;
+    capacity?: number;
+    imageUrl?: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+    rejectionReason?: string;
+    createdAt: string;
+}
+
+export interface CreateEventRequest {
+    title: string;
+    description?: string;
+    eventDate: string; // ISO format
+    location: string;
+    capacity?: number;
+    imageUrl?: string;
+}
+
 
 // --- Common ---
 export interface PaginatedResponse<T> {
