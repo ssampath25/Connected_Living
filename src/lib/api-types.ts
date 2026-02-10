@@ -44,13 +44,13 @@ export interface ResidentProfile {
 // --- Visitors ---
 export interface VisitorGroup {
     id: string;
-    qrToken: string;
-    purpose: string;
-    expectedFrom: string;
-    expectedTo: string;
+    qrToken?: string;
+    visitStart: string;
+    visitEnd: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
     visitors: Visitor[];
     createdAt: string;
+    unit?: { unitNumber: string };
 }
 
 export interface Visitor {
@@ -78,7 +78,9 @@ export interface RecurringStaff {
     scheduleType: 'DAILY' | 'WEEKLY' | 'MONTHLY';
     validFrom: string;
     validTo: string;
+    qrCodeId: string;
     status: 'ACTIVE' | 'DEACTIVATED';
+    createdAt?: string;
 }
 
 export interface CreateRecurringStaffRequest {

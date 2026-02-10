@@ -207,7 +207,7 @@ export interface CommunityEventItem {
 }
 
 export type InviteParams =
-    | { type: "Guest"; name: string; phone?: string; email?: string; date: string; time: string; singleEntry: boolean; avatar?: string }
+    | { type: "Guest"; guests: { name: string; phone?: string; email?: string; avatar?: string }[]; date: string; time: string; singleEntry: boolean }
     | { type: "Delivery"; vendor: string; name?: string; phone?: string; date: string; time?: string }
     | { type: "Cab"; driverName: string; vehicleNo: string; service: string; date: string; time?: string; model?: string }
 
@@ -228,6 +228,10 @@ export interface FrequentVisitorItem {
     type: "Guest" | "Delivery" | "Cab" | "Staff"
     avatar?: string
     relation?: string
+    mobile?: string
+    photoUrl?: string
+    scheduleType?: "DAILY" | "WEEKLY" | "MONTHLY"
+    qrCodeId?: string
     validUntil: string
     allowedTimeSlot?: string
     isActive: boolean
@@ -254,6 +258,25 @@ export interface BookingItem {
 }
 
 // ==========================================
+// Helper Functions
+// ==========================================
+
+function formatTimeAgo(date: Date): string {
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 1) return "Just now"
+    if (diffMins < 60) return `${diffMins} mins ago`
+    if (diffHours < 24) return `${diffHours} hours ago`
+    if (diffDays === 1) return "Yesterday"
+    if (diffDays < 7) return `${diffDays} days ago`
+    return date.toLocaleDateString('en-GB')
+}
+
+// ==========================================
 // Transform Functions (Backend -> Frontend)
 // ==========================================
 
@@ -268,19 +291,6 @@ function transformResidentToUser(resident: ResidentProfile): UserItem {
     }
 }
 
-function transformVisitorGroup(group: VisitorGroup): VisitorItem {
-    const firstVisitor = group.visitors[0]
-    return {
-        id: parseInt(group.id.slice(-4), 16) || Date.now(),
-        unitId: "",
-        hostName: "",
-        name: firstVisitor?.name || "Visitor",
-        type: "Guest",
-        code: group.qrToken.slice(0, 4).toUpperCase(),
-        time: new Date(group.expectedFrom).toLocaleString(),
-        status: group.status === "ACTIVE" ? "Expected" : "Left",
-    }
-}
 
 function transformVehicle(vehicle: Vehicle): VehicleItem {
     return {
@@ -419,12 +429,50 @@ function transformRecurringStaff(staff: RecurringStaff): FrequentVisitorItem {
         name: staff.name,
         type: "Staff",
         relation: "Staff",
+        mobile: staff.mobileNumber,
+        photoUrl: staff.photoUrl,
+        scheduleType: staff.scheduleType,
+        qrCodeId: staff.qrCodeId,
+        avatar: staff.photoUrl || staff.name[0]?.toUpperCase(),
         validUntil: staff.validTo ? new Date(staff.validTo).toISOString().split('T')[0] : "",
         allowedTimeSlot: undefined,
         isActive: staff.status === "ACTIVE",
     }
 }
 
+function transformVisitorGroup(group: VisitorGroup): VisitorItem {
+    const now = new Date()
+    const visitStart = new Date(group.visitStart)
+    const visitEnd = new Date(group.visitEnd)
+
+    // Determine status based on time and group status
+    let status: VisitorItem["status"] = "Expected"
+    if (group.status === "REVOKED") {
+        status = "Denied"
+    } else if (group.status === "EXPIRED" || visitEnd < now) {
+        status = "Left"
+    } else if (visitStart <= now && now <= visitEnd) {
+        status = "Inside"
+    }
+
+    const visitorName = group.visitors?.[0]?.name || "Guest"
+
+    return {
+        id: parseInt(group.id.slice(-6), 16) || Date.now(),
+        unitId: "",
+        hostName: "Me",
+        name: visitorName,
+        type: "Guest",
+        code: group.qrToken?.slice(0, 4).toUpperCase() || "----",
+        time: new Date(group.createdAt).toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        }),
+        status,
+    }
+}
 
 // ==========================================
 // API Methods (Real Backend Calls)
@@ -500,39 +548,15 @@ export const api = {
         }
     },
 
-    getActivities: async (): Promise<ActivityItem[]> => {
-        // Return mock data for now to stabilize dashboard
-        return [
-            {
-                id: 1,
-                userId: "1",
-                title: "Maintenance Bill",
-                subtitle: "Monthly maintenance paid",
-                time: "2 hours ago",
-                iconType: "payment",
-                bg: "bg-blue-100 dark:bg-blue-900/20",
-                iconColor: "text-blue-600 dark:text-blue-400"
-            },
-            {
-                id: 2,
-                userId: "1",
-                title: "Visitor Entry",
-                subtitle: "Amazon Delivery at Gate 1",
-                time: "4 hours ago",
-                iconType: "visitor",
-                bg: "bg-green-100 dark:bg-green-900/20",
-                iconColor: "text-green-600 dark:text-green-400"
-            }
-        ]
+    getDashboardStats: async (): Promise<{ activeTickets: number; upcomingBookings: number; pendingApprovals: number }> => {
+        try {
+            return await httpClient.get<{ activeTickets: number; upcomingBookings: number; pendingApprovals: number }>("/residents/me/dashboard")
+        } catch {
+            return { activeTickets: 0, upcomingBookings: 0, pendingApprovals: 0 }
+        }
     },
 
-    getUnreadCount: async (): Promise<number> => {
-        return 0
-    },
 
-    getSOSStatus: async (): Promise<boolean> => {
-        return false
-    },
 
     getUserProfile: async (): Promise<UserItem | undefined> => {
         try {
@@ -577,12 +601,12 @@ export const api = {
         }
     },
     deleteFrequentVisitor: async (id: string): Promise<boolean> => {
-        const index = MOCK_FREQUENT_VISITORS.findIndex(v => v.id === id)
-        if (index !== -1) {
-            MOCK_FREQUENT_VISITORS.splice(index, 1)
-            return new Promise(resolve => setTimeout(() => resolve(true), 800))
+        try {
+            await httpClient.patch(`/visitors/recurring/${id}/deactivate`)
+            return true
+        } catch {
+            return false
         }
-        return false
     },
 
     deleteFamilyMember: async (id: string): Promise<boolean> => {
@@ -670,42 +694,43 @@ export const api = {
         }
     },
 
-    inviteVisitor: async (data: InviteParams): Promise<{ success: boolean; code?: string; message: string }> => {
+    inviteVisitor: async (data: InviteParams): Promise<{ success: boolean; code?: string; qrToken?: string; message: string }> => {
         try {
+            // Get user's unit ID from profile
+            const profile = await httpClient.get<ResidentProfile>("/residents/me")
+            const unitId = profile.units?.[0]?.id
+            if (!unitId) {
+                return { success: false, message: "No unit found for resident" }
+            }
+
             // Extract visitor name based on type
-            let visitorName = ""
-            let visitorPhone: string | undefined
+            // Extract visitors array based on type
+            let visitors: { name: string; mobileNumber?: string }[] = []
             let visitorTime = "09:00"
 
             if (data.type === "Guest") {
-                visitorName = data.name
-                visitorPhone = data.phone
+                visitors = data.guests.map(g => ({ name: g.name, mobileNumber: g.phone }))
                 visitorTime = data.time
             } else if (data.type === "Delivery") {
-                visitorName = data.name || data.vendor
-                visitorPhone = data.phone
+                visitors = [{ name: data.name || data.vendor, mobileNumber: data.phone }]
                 visitorTime = data.time || "09:00"
             } else if (data.type === "Cab") {
-                visitorName = data.driverName
+                visitors = [{ name: data.driverName }]
                 visitorTime = data.time || "09:00"
             }
 
-            const request: CreateVisitorGroupRequest = {
-                purpose: data.type,
-                expectedFrom: `${data.date}T${visitorTime}:00`,
-                expectedTo: `${data.date}T23:59:00`,
-                visitors: [{
-                    name: visitorName,
-                    phone: visitorPhone,
-                }],
-                type: data.type,
-                relation: data.type === 'Guest' ? 'Friend' : data.type, // Default relation
-                avatar: data.avatar
+            // Build request matching backend DTO
+            const request = {
+                unitId,
+                visitStart: `${data.date}T${visitorTime}:00`,
+                visitEnd: `${data.date}T23:59:00`,
+                visitors,
             }
-            const group = await httpClient.post<VisitorGroup>("/visitors/groups", request)
+            const response = await httpClient.post<{ groupId: string; qrToken: string; expiresAt: string }>("/visitors/groups", request)
             return {
                 success: true,
-                code: group.qrToken.slice(0, 4).toUpperCase(),
+                code: response.qrToken.slice(0, 4).toUpperCase(),
+                qrToken: response.qrToken,
                 message: data.type === "Guest" ? "Invite Code Generated" : "Details shared with Security",
             }
         } catch (e) {
@@ -747,31 +772,43 @@ export const api = {
     },
 
 
-    addFrequentVisitor: async (visitor: Omit<FrequentVisitorItem, "id">): Promise<boolean> => {
+    addFrequentVisitor: async (visitor: Omit<FrequentVisitorItem, "id">): Promise<RecurringStaff | null> => {
         try {
-            // Calculate validity dates
+            // Get unitId from user profile (same pattern as inviteVisitor)
+            const profile = await httpClient.get<ResidentProfile>("/residents/me")
+            const unitId = profile.units?.[0]?.id
+            if (!unitId) return null
+
             const validFrom = new Date().toISOString()
             const validTo = visitor.validUntil ? new Date(visitor.validUntil).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
             const request: CreateRecurringStaffRequest = {
-                unitId: "u1", // TODO: Get from user context
+                unitId,
                 name: visitor.name,
-                mobileNumber: "9999999999", // TODO: Get from form
-                photoUrl: visitor.avatar || "https://example.com/default.jpg",
-                scheduleType: "DAILY",
+                mobileNumber: visitor.mobile || "0000000000",
+                photoUrl: visitor.photoUrl || visitor.avatar || "https://example.com/default.jpg",
+                scheduleType: visitor.scheduleType || "DAILY",
                 validFrom,
                 validTo,
             }
-            await httpClient.post("/visitors/recurring", request)
+            const created = await httpClient.post<RecurringStaff>("/visitors/recurring", request)
+            return created
+        } catch {
+            return null
+        }
+    },
+
+    updateFrequentVisitor: async (id: string, updates: Partial<FrequentVisitorItem>): Promise<boolean> => {
+        try {
+            await httpClient.patch(`/visitors/recurring/${id}`, {
+                name: updates.name,
+                mobileNumber: updates.mobile,
+                validTo: updates.validUntil ? new Date(updates.validUntil).toISOString() : undefined,
+            })
             return true
         } catch {
             return false
         }
-    },
-
-
-    updateFrequentVisitor: async (id: string, updates: Partial<FrequentVisitorItem>): Promise<boolean> => {
-        return false
     },
 
     getVisitorAttendance: async (id: string): Promise<AttendanceItem[]> => {
@@ -945,60 +982,86 @@ export const api = {
 
     getActivities: async (): Promise<ActivityItem[]> => {
         try {
-            const [notifications, requests, invoices, visitors] = await Promise.all([
-                api.getNotifications(),
-                api.getServiceRequests(),
-                api.getInvoices(),
-                api.getFrequentVisitors() // ideally getting visitor logs, but using frequent for now or maybe just notifications
+            const [bookings, requests, visitorGroups, recurringVisitors] = await Promise.all([
+                httpClient.get<Booking[]>("/amenities/bookings", { cache: 'no-store' }).then(res => res.map(transformBooking)).catch(() => []),
+                httpClient.get<ServiceRequest[]>("/service-requests", { cache: 'no-store' }).then(res => res.map(transformServiceRequest)).catch(() => []),
+                httpClient.get<VisitorGroup[]>("/visitors/groups", { cache: 'no-store' }).catch(() => []),
+                httpClient.get<RecurringStaff[]>("/visitors/recurring", { cache: 'no-store' }).catch(() => []),
             ])
 
-            const activities: ActivityItem[] = []
+            // Use extended type with timestamp for sorting
+            const activities: (ActivityItem & { _timestamp: number })[] = []
 
-            // Map Notifications
-            notifications.slice(0, 5).forEach(n => {
+            // Map Amenity Bookings (user action: booked a slot)
+            bookings.forEach(booking => {
                 activities.push({
-                    id: n.id,
+                    id: parseInt(booking.id) || Date.now(),
                     userId: "me",
-                    title: n.title,
-                    subtitle: n.description,
-                    time: n.time,
-                    iconType: n.type === "payment" ? "payment" : n.type === "security" ? "security" : "default",
-                    bg: "bg-blue-100",
-                    iconColor: "text-blue-600"
+                    title: `${booking.amenityName} Booked`,
+                    subtitle: `Slot booked : ${booking.slots[0] || 'N/A'} | ${new Date(booking.date).toLocaleDateString('en-GB')}`,
+                    time: formatTimeAgo(new Date(booking.timestamp)),
+                    iconType: "default",
+                    bg: "bg-blue-100 dark:bg-blue-900/20",
+                    iconColor: "text-blue-600 dark:text-blue-400",
+                    _timestamp: booking.timestamp
                 })
             })
 
-            // Map Service Requests
-            requests.slice(0, 3).forEach(req => {
+            // Map Service Requests (user action: raised a complaint)
+            requests.forEach(req => {
+                const ts = new Date(req.date).getTime()
                 activities.push({
                     id: parseInt(req.id) || Date.now(),
                     userId: "me",
-                    title: `Service Request: ${req.category}`,
+                    title: `Service Request : ${req.category}`,
                     subtitle: `${req.title} - ${req.status}`,
-                    time: req.date,
+                    time: formatTimeAgo(new Date(req.date)),
                     iconType: "complaint",
-                    bg: "bg-orange-100",
-                    iconColor: "text-orange-600"
+                    bg: "bg-orange-100 dark:bg-orange-900/20",
+                    iconColor: "text-orange-600 dark:text-orange-400",
+                    _timestamp: ts
                 })
             })
 
-            // Map Payments
-            invoices.filter(i => i.status === "UNPAID").slice(0, 2).forEach(inv => {
+            // Map Visitor Groups/Invitations (user action: invited visitors)
+            visitorGroups.forEach(group => {
+                const visitorName = group.visitors?.[0]?.name || 'Guest'
+                const ts = new Date(group.createdAt).getTime()
                 activities.push({
-                    id: parseInt(inv.id) || Date.now(),
+                    id: parseInt(group.id.slice(-6), 16) || Date.now(),
                     userId: "me",
-                    title: "Bill Due",
-                    subtitle: `${inv.type} Invoice - ₹${inv.amount}`,
-                    time: new Date(inv.dueDate).toLocaleDateString(),
-                    iconType: "payment",
-                    bg: "bg-red-100",
-                    iconColor: "text-red-600"
+                    title: `Guest Pre-Approved`,
+                    subtitle: `${visitorName} - Invited`,
+                    time: formatTimeAgo(new Date(group.createdAt)),
+                    iconType: "visitor",
+                    bg: "bg-green-100 dark:bg-green-900/20",
+                    iconColor: "text-green-600 dark:text-green-400",
+                    _timestamp: ts
                 })
             })
 
-            // Sort by time (approximated as we have mixed formats, but usually new items are top)
-            // For now, simple shuffle or just return combined
-            return activities.slice(0, 10)
+            // Map Recurring Visitors (user action: added frequent visitor)
+            recurringVisitors.forEach(staff => {
+                const createdDate = staff.createdAt || staff.validFrom
+                const ts = new Date(createdDate).getTime()
+                activities.push({
+                    id: parseInt(staff.id.slice(-6), 16) || Date.now(),
+                    userId: "me",
+                    title: `Recurring Visitor Added`,
+                    subtitle: `${staff.name} - ${staff.scheduleType}`,
+                    time: formatTimeAgo(new Date(createdDate)),
+                    iconType: "visitor",
+                    bg: "bg-purple-100 dark:bg-purple-900/20",
+                    iconColor: "text-purple-600 dark:text-purple-400",
+                    _timestamp: ts
+                })
+            })
+
+            // Sort by timestamp (most recent first) and return top 5
+            return activities
+                .sort((a, b) => b._timestamp - a._timestamp)
+                .slice(0, 5)
+                .map(({ _timestamp, ...rest }) => rest)
         } catch {
             return []
         }

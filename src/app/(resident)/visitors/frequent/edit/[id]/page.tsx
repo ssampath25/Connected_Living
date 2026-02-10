@@ -2,11 +2,12 @@
 
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Save, User, Calendar, Clock, IdCard, Trash2, CalendarCheck, Pencil, Camera } from "lucide-react"
+import { ArrowLeft, Save, User, Calendar, Clock, IdCard, Trash2, CalendarCheck, Pencil, Camera, CreditCard } from "lucide-react"
 import { useRef } from "react"
 import { api, FrequentVisitorItem, AttendanceItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SimpleCalendar } from "@/components/simple-calendar"
+import { StaffIdCard } from "@/components/staff-id-card"
 
 export default function EditFrequentVisitorPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter()
@@ -16,6 +17,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
     const [saving, setSaving] = useState(false)
     const [revoking, setRevoking] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
+    const [showIdCard, setShowIdCard] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const dateRef = useRef<HTMLInputElement>(null)
 
@@ -42,7 +44,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                 setName(data.name)
                 setRelation(data.relation || "")
                 setType(data.type)
-                setAvatar(data.avatar || "")
+                setAvatar(data.photoUrl || data.avatar || "")
                 setValidUntil(data.validUntil)
                 if (data.allowedTimeSlot) {
                     setHasTimeSlot(true)
@@ -63,7 +65,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
     const handleSave = async () => {
         if (!visitor) return
         setSaving(true)
-        await api.updateFrequentVisitor(visitor.id, {
+        const success = await api.updateFrequentVisitor(visitor.id, {
             name,
             relation,
             type,
@@ -72,7 +74,13 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
             allowedTimeSlot: hasTimeSlot ? allowedTimeSlot : undefined
         })
         setSaving(false)
-        setIsEditing(false)
+        if (success) {
+            setIsEditing(false)
+            // Update local state
+            setVisitor(prev => prev ? { ...prev, name, relation, validUntil } : null)
+        } else {
+            alert("Failed to save changes. Please try again.")
+        }
     }
 
     const handleRevoke = async () => {
@@ -92,8 +100,11 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (file) {
-            const url = URL.createObjectURL(file)
-            setAvatar(url)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setAvatar(reader.result as string)
+            }
+            reader.readAsDataURL(file)
         }
     }
 
@@ -142,7 +153,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                             onClick={() => isEditing && fileInputRef.current?.click()}
                             className={`h-20 w-20 bg-accent rounded-full flex items-center justify-center text-primary text-2xl font-bold overflow-hidden shadow-inner border-2 border-card transition-all ${isEditing ? 'cursor-pointer hover:opacity-90 ring-4 ring-primary/10' : ''}`}
                         >
-                            {(avatar && avatar.includes('/')) || (avatar && avatar.startsWith('blob:')) ? (
+                            {(avatar && avatar.includes('/')) || (avatar && avatar.startsWith('blob:')) || (avatar && avatar.startsWith('data:')) ? (
                                 <img src={avatar} alt={name} className="w-full h-full object-cover" />
                             ) : (
                                 <span>{avatar || name[0]}</span>
@@ -180,6 +191,11 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                             <span className="px-3 py-1 rounded-full bg-accent text-muted-foreground text-[10px] font-bold uppercase tracking-wider">
                                 {visitor.type}
                             </span>
+                            {visitor.scheduleType && (
+                                <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider">
+                                    {visitor.scheduleType}
+                                </span>
+                            )}
                             {isEditing ? (
                                 <input
                                     type="text"
@@ -199,7 +215,23 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                     </div>
                 </div>
 
-                {/* 2. Validity Setting */}
+                {/* 2. QR ID Card Button */}
+                {visitor.qrCodeId && (
+                    <button
+                        onClick={() => setShowIdCard(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-2xl shadow-lg shadow-blue-600/20 flex items-center gap-3 active:scale-[0.98] transition-all"
+                    >
+                        <div className="bg-white/20 p-2 rounded-xl">
+                            <CreditCard size={22} />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-sm">View QR ID Card</p>
+                            <p className="text-blue-200 text-xs">Download or share the staff entry pass</p>
+                        </div>
+                    </button>
+                )}
+
+                {/* 3. Validity Setting */}
                 <div className="bg-card p-6 rounded-3xl shadow-sm border border-border transition-colors">
                     <div className="flex items-center gap-2 mb-4 text-primary">
                         <CalendarCheck size={20} />
@@ -229,7 +261,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                     </div>
                 </div>
 
-                {/* 3. Time Slot Setting */}
+                {/* 4. Time Slot Setting */}
                 <div className="bg-card p-4 rounded-3xl border border-border space-y-4 shadow-sm transition-colors">
                     <div className="flex items-center justify-between">
                         <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 ml-1">
@@ -265,7 +297,7 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
 
                 </div>
 
-                {/* 4. Attendance History */}
+                {/* 5. Attendance History */}
                 <div className="bg-card p-6 rounded-3xl shadow-sm border border-border transition-colors">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2 text-primary">
@@ -357,6 +389,20 @@ export default function EditFrequentVisitorPage({ params }: { params: Promise<{ 
                         )}
                     </button>
                 </div>
+            )}
+
+            {/* ID Card Modal */}
+            {showIdCard && visitor.qrCodeId && (
+                <StaffIdCard
+                    staffName={visitor.name}
+                    role={visitor.relation || visitor.type}
+                    photoUrl={visitor.photoUrl || visitor.avatar || ""}
+                    staffId={visitor.id}
+                    qrCodeId={visitor.qrCodeId}
+                    validThru={visitor.validUntil}
+                    scheduleType={visitor.scheduleType || "DAILY"}
+                    onClose={() => setShowIdCard(false)}
+                />
             )}
         </div>
     )

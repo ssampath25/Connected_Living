@@ -27,18 +27,22 @@ export default function SmartHubPage() {
     return (
         <div className="flex flex-col min-h-screen bg-background pb-24 lg:pb-0">
             {/* Header */}
-            <div className="p-6 bg-card sticky top-0 z-10 border-b border-border">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-primary">Smart Hub</h1>
-                        <p className="text-sm text-muted-foreground">Manage your home</p>
+            <div className="bg-card px-6 py-6 rounded-b-[2rem] border-b border-border shadow-sm z-20 sticky top-0">
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-1">
+                        <div>
+                            <h1 className="text-2xl font-extrabold text-primary tracking-tight">Smart Hub</h1>
+                            <p className="text-xs text-muted-foreground font-medium mt-0.5">Manage your home</p>
+                        </div>
                     </div>
-                    <button className="h-10 w-10 bg-primary/10 text-primary rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors">
+                    <div className="h-10 w-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary hover:bg-primary/20 transition-colors cursor-pointer">
                         <Mic size={20} />
-                    </button>
+                    </div>
                 </div>
+            </div>
 
-                {/* Rooms Carousel */}
+            {/* Rooms Carousel */}
+            <div className="px-6 pt-4 pb-2">
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                     {ROOMS.map(room => (
                         <button

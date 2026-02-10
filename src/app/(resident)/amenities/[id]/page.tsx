@@ -17,6 +17,7 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
     const [selectedSlots, setSelectedSlots] = useState<string[]>([])
     const [booking, setBooking] = useState(false)
     const [allSlots, setAllSlots] = useState<AmenitySlot[]>([])
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         Promise.all([

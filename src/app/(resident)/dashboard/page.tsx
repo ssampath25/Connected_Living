@@ -8,26 +8,35 @@ import { Skeleton } from "@/components/ui/skeleton"
 // Import API and Types
 import { api, getIconForType, ActivityItem } from "@/lib/api"
 
+interface DashboardStats {
+    activeTickets: number
+    upcomingBookings: number
+    pendingApprovals: number
+}
+
 export default function ResidentDashboard() {
     const [activityLog, setActivityLog] = useState<ActivityItem[]>([])
     const [unreadCount, setUnreadCount] = useState(0)
     const [loading, setLoading] = useState(true)
     const [isSOSActive, setIsSOSActive] = useState(false)
     const [user, setUser] = useState<any>(null)
+    const [stats, setStats] = useState<DashboardStats>({ activeTickets: 0, upcomingBookings: 0, pendingApprovals: 0 })
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [activities, count, sosStatus, currentUser] = await Promise.all([
+                const [activities, count, sosStatus, currentUser, dashboardStats] = await Promise.all([
                     api.getActivities(),
                     api.getUnreadCount(),
                     api.getSOSStatus(),
-                    api.getCurrentUser()
+                    api.getCurrentUser(),
+                    api.getDashboardStats()
                 ])
                 setActivityLog(activities)
                 setUnreadCount(count)
                 setIsSOSActive(sosStatus)
                 setUser(currentUser)
+                setStats(dashboardStats)
             } catch (error) {
                 console.error("Failed to fetch dashboard data", error)
             } finally {
@@ -63,6 +72,10 @@ export default function ResidentDashboard() {
 
                 <div className="grid grid-cols-4 gap-4">
                     {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full rounded-2xl" />)}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
                 </div>
 
                 <div className="space-y-4">
@@ -134,6 +147,16 @@ export default function ResidentDashboard() {
                                 <QuickAction icon={Dumbbell} label="Amenities" href="/amenities" />
                                 <QuickAction icon={Receipt} label="Pay Bills" href="/payments" />
                                 <QuickAction icon={Wrench} label="Complaints" href="/service-requests" />
+                            </div>
+                        </div>
+
+                        {/* Dashboard Stats - NEW SECTION */}
+                        <div>
+                            <h3 className="text-primary font-bold text-lg mb-4 lg:text-xl lg:mb-6 uppercase tracking-wide text-center lg:text-left">Dashboard</h3>
+                            <div className="grid grid-cols-3 gap-3 lg:gap-4">
+                                <StatCard value={stats.activeTickets} label="Active Tickets" color="green" />
+                                <StatCard value={stats.upcomingBookings} label="Upcoming Bookings" color="blue" />
+                                <StatCard value={stats.pendingApprovals} label="Pending Approvals" color="red" />
                             </div>
                         </div>
 
@@ -246,5 +269,24 @@ function QuickAction({ icon: Icon, label, href }: { icon: any, label: string, hr
             </div>
             <span className="text-xs lg:text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">{label}</span>
         </Link>
+    )
+}
+
+// Dashboard Stats Card Component
+function StatCard({ value, label, color }: { value: number; label: string; color: "green" | "blue" | "red" }) {
+    const colorClasses = {
+        green: "border-green-500 text-green-600 dark:text-green-400",
+        blue: "border-blue-600 text-blue-600 dark:text-blue-400",
+        red: "border-red-500 text-red-600 dark:text-red-400"
+    }
+
+    return (
+        <div className={cn(
+            "rounded-2xl border-2 bg-card p-3 lg:p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow",
+            colorClasses[color]
+        )}>
+            <span className={cn("text-3xl lg:text-4xl font-bold", colorClasses[color])}>{value}</span>
+            <span className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 leading-tight">{label}</span>
+        </div>
     )
 }

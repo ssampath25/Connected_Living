@@ -4,24 +4,60 @@ import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import {
     Moon, Sun, Monitor, Users, Car, ChevronRight,
-    Bell, Shield, Phone, FileText, ChevronLeft, Settings, AlertCircle
+    Bell, Shield, Phone, FileText, ChevronLeft, Settings, AlertCircle,
+    User, Mail, MapPin, Edit2, Check, X as XIcon
 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
+interface UserProfile {
+    name: string
+    email: string
+    phone: string
+    unit: string
+    avatar?: string
+}
+
 export default function MorePage() {
     const router = useRouter()
     // View State
-    const [currentView, setCurrentView] = useState<"main" | "appearance">("main")
+    const [currentView, setCurrentView] = useState<"main" | "appearance" | "profile">("main")
 
     const { theme, setTheme, resolvedTheme } = useTheme()
     const [mounted, setMounted] = useState(false)
 
+    // Profile State
+    const [profile, setProfile] = useState<UserProfile>({
+        name: "",
+        email: "",
+        phone: "",
+        unit: "",
+        avatar: ""
+    })
+    const [isEditing, setIsEditing] = useState(false)
+    const [editedProfile, setEditedProfile] = useState<UserProfile>(profile)
+
     // Ensure component is mounted to avoid hydration mismatch
     useEffect(() => {
         setMounted(true)
+        // Fetch user data
+        const loadUser = async () => {
+            const user = await api.getCurrentUser()
+            if (user) {
+                const userProfile = {
+                    name: user.name || "Resident",
+                    email: user.email || "resident@example.com",
+                    phone: user.phone || "+91 98765 43210",
+                    unit: "A-101, Tower 1",
+                    avatar: user.avatar || ""
+                }
+                setProfile(userProfile)
+                setEditedProfile(userProfile)
+            }
+        }
+        loadUser()
     }, [])
     const [showSOSConfirm, setShowSOSConfirm] = useState(false)
 
@@ -33,6 +69,17 @@ export default function MorePage() {
         } catch (error) {
             console.error("Failed to trigger SOS")
         }
+    }
+
+    const handleSaveProfile = () => {
+        setProfile(editedProfile)
+        setIsEditing(false)
+        // In real app, would call api.updateProfile(editedProfile)
+    }
+
+    const handleCancelEdit = () => {
+        setEditedProfile(profile)
+        setIsEditing(false)
     }
 
     // Notification States (Default all true)
@@ -71,12 +118,12 @@ export default function MorePage() {
                         )}
 
                         <h1 className="text-3xl font-extrabold text-primary tracking-tight">
-                            {currentView === "appearance" ? "Appearance" : "Settings"}
+                            {currentView === "appearance" ? "Appearance" : currentView === "profile" ? "Edit Profile" : "Settings"}
                         </h1>
                     </div>
                     {currentView === "main" && (
                         <div className="h-10 w-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                            <Settings size={20} />
+                            <User size={20} />
                         </div>
                     )}
                 </div>
@@ -86,6 +133,24 @@ export default function MorePage() {
 
                 {currentView === "main" ? (
                     <>
+                        {/* --- PROFILE SECTION --- */}
+                        <section className="space-y-4">
+                            <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border">
+                                <Link href="/profile" className="w-full flex items-center justify-between p-5 hover:bg-accent/50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                            <User size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-bold text-foreground">Profile Settings</h3>
+                                            <p className="text-xs text-muted-foreground">Manage your profile</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={20} className="text-muted-foreground" />
+                                </Link>
+                            </div>
+                        </section>
+
                         {/* --- GENERAL SECTION --- */}
                         <section className="space-y-4">
                             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">General</h2>
@@ -279,6 +344,103 @@ export default function MorePage() {
                             <p className="text-xs text-muted-foreground font-medium">Connected Living App • v1.0.2</p>
                         </div>
                     </>
+                ) : currentView === "profile" ? (
+                    // --- PROFILE EDIT VIEW ---
+                    <div className="animate-in slide-in-from-right duration-300 space-y-6">
+                        {/* Avatar Section */}
+                        <div className="flex justify-center">
+                            <div className="relative">
+                                <div className="h-24 w-24 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-4xl font-bold overflow-hidden border-4 border-primary/20">
+                                    {profile.avatar ? (
+                                        <img src={profile.avatar} alt="Profile" className="h-full w-full object-cover" />
+                                    ) : (
+                                        profile.name.charAt(0).toUpperCase()
+                                    )}
+                                </div>
+                                <button className="absolute -bottom-2 -right-2 h-8 w-8 bg-primary text-white rounded-xl flex items-center justify-center shadow-lg">
+                                    <Edit2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Form Fields */}
+                        <section className="space-y-4">
+                            <div className="bg-card rounded-2xl p-4 shadow-sm border border-border space-y-4">
+                                {/* Name Field */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Full Name</label>
+                                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+                                        <User size={18} className="text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            value={editedProfile.name}
+                                            onChange={(e) => setEditedProfile({ ...editedProfile, name: e.target.value })}
+                                            className="flex-1 bg-transparent outline-none text-foreground font-medium"
+                                            placeholder="Enter your name"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Email Field */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email</label>
+                                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+                                        <Mail size={18} className="text-muted-foreground" />
+                                        <input
+                                            type="email"
+                                            value={editedProfile.email}
+                                            onChange={(e) => setEditedProfile({ ...editedProfile, email: e.target.value })}
+                                            className="flex-1 bg-transparent outline-none text-foreground font-medium"
+                                            placeholder="Enter your email"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Phone Field */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Phone</label>
+                                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl border border-border">
+                                        <Phone size={18} className="text-muted-foreground" />
+                                        <input
+                                            type="tel"
+                                            value={editedProfile.phone}
+                                            onChange={(e) => setEditedProfile({ ...editedProfile, phone: e.target.value })}
+                                            className="flex-1 bg-transparent outline-none text-foreground font-medium"
+                                            placeholder="Enter your phone"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Unit Field (Read-only) */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Unit / Flat</label>
+                                    <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl border border-border">
+                                        <MapPin size={18} className="text-muted-foreground" />
+                                        <span className="flex-1 text-muted-foreground font-medium">{editedProfile.unit}</span>
+                                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">Read-only</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Action Buttons */}
+                        <div className="grid grid-cols-2 gap-4 pt-4">
+                            <button
+                                onClick={handleCancelEdit}
+                                className="py-4 bg-muted hover:bg-accent rounded-2xl font-bold text-foreground transition-colors flex items-center justify-center gap-2"
+                            >
+                                <XIcon size={18} />
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveProfile}
+                                className="py-4 bg-primary hover:bg-primary/90 rounded-2xl font-bold text-white transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                            >
+                                <Check size={18} />
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
                 ) : (
                     // --- APPEARANCE SUB-VIEW ---
                     <div className="animate-in slide-in-from-right duration-300">
