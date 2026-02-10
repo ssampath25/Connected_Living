@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import React, { useState, useRef } from "react"
 import { ArrowLeft, Upload, Camera, Zap, Waves, Hammer, Package, MessageSquare, CheckCircle2, Mic, Users, X, AlertCircle, AlertTriangle, Calendar as CalendarIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"

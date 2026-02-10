@@ -1,0 +1,3 @@
+﻿src/app/(security)/security-logs/page.tsx(37,25): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/app/(security)/security-visitors/page.tsx(260,84): error TS2339: Property 'unit' does not exist on type 'VisitorItem'.

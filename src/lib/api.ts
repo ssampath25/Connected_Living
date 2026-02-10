@@ -89,10 +89,18 @@ export interface VisitorItem {
     unitId: string
     hostName: string
     name: string
-    type: "Delivery" | "Guest" | "Cab"
-    code: string
-    time: string
+    type: "Delivery" | "Guest" | "Cab" | "Service"
+    code?: string
+    time?: string
     status: "Expected" | "Inside" | "Left" | "Denied"
+    date?: string // YYYY-MM-DD
+    approvalType?: "Pre-approved" | "Sudden"
+    vehicleNo?: string
+    mobile?: string
+    image?: string
+    purpose?: string
+    entryTime?: string
+    exitTime?: string
 }
 
 export interface AmenityItem {
@@ -179,6 +187,20 @@ export interface VehicleItem {
     registrationNumber: string
     model?: string
     color?: string
+}
+
+export interface VehicleEntryItem {
+    id: string
+    vehicleNumber: string
+    type: "Car" | "Bike" | "Truck" | "Auto"
+    ownerName: string
+    unitId: string
+    status: "Inside" | "Exited"
+    entryTime: string
+    exitTime?: string
+    date: string // YYYY-MM-DD format
+    purpose?: string
+    registeredVehicleId?: string // Link to VehicleItem if registered
 }
 
 export interface CommunityMessageItem {

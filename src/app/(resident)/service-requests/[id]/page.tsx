@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, MessageSquare, Phone } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, MessageSquare, Phone, BrainCircuit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, getIconForType, ServiceRequestItem, StaffItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
