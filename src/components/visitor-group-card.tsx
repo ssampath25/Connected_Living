@@ -69,6 +69,7 @@ export function VisitorGroupCard({
     }
 
     const getShareLink = () => `${typeof window !== "undefined" ? window.location.origin : ""}/pass/group/${encodeURIComponent(qrToken)}`
+    const getQrValue = () => qrToken
 
     const handleShare = async () => {
         const shareUrl = getShareLink()
@@ -234,7 +235,7 @@ export function VisitorGroupCard({
                         <div className="flex justify-center py-2">
                             <div className="p-3 bg-white border border-slate-100 rounded-2xl shadow-sm">
                                 <QRCodeSVG
-                                    value={getShareLink()} // Scan opens the pass page
+                                    value={getQrValue()} // Scan uses raw token (backend validates hash)
                                     size={160}
                                     level="M"
                                     includeMargin

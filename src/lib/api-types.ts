@@ -48,6 +48,8 @@ export interface VisitorGroup {
     visitStart: string;
     visitEnd: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    singleEntry?: boolean;
+    entryLogs?: { entryAt: string; exitAt?: string; status: 'ENTERED' | 'EXITED' | 'DENIED' }[];
     visitors: Visitor[];
     createdAt: string;
     unit?: { unitNumber: string };
@@ -365,6 +367,7 @@ export interface SecurityVisitorEntry {
     gateId?: string;
     qrCode?: string;
     approvalType?: 'Pre-approved' | 'Sudden';
+    deniedReason?: string;
 }
 
 
@@ -448,4 +451,3 @@ export interface SecurityVehicleLog {
     exitTime?: string;
     date: string;
 }
-

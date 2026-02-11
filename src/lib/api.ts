@@ -476,9 +476,14 @@ function transformVisitorGroup(group: VisitorGroup): VisitorItem {
     const visitStart = new Date(group.visitStart)
     const visitEnd = new Date(group.visitEnd)
 
-    // Determine status based on time and group status
+    // Determine status using latest entry log when available
     let status: VisitorItem["status"] = "Expected"
-    if (group.status === "REVOKED") {
+    const latestLog = group.entryLogs?.[0]
+    if (latestLog) {
+        if (latestLog.status === "ENTERED" && !latestLog.exitAt) status = "Inside"
+        else if (latestLog.status === "EXITED" || latestLog.exitAt) status = "Left"
+        else if (latestLog.status === "DENIED") status = "Denied"
+    } else if (group.status === "REVOKED") {
         status = "Denied"
     } else if (group.status === "EXPIRED" || visitEnd < now) {
         status = "Left"
@@ -494,7 +499,7 @@ function transformVisitorGroup(group: VisitorGroup): VisitorItem {
         hostName: "Me",
         name: visitorName,
         type: "Guest",
-        code: group.qrToken?.slice(0, 4).toUpperCase() || "----",
+        code: (group as any).shortCode || group.qrToken?.slice(0, 4).toUpperCase() || "----",
         time: new Date(group.createdAt).toLocaleString('en-GB', {
             day: '2-digit',
             month: 'short',
@@ -756,6 +761,7 @@ export const api = {
                 visitStart: `${data.date}T${visitorTime}:00`,
                 visitEnd: `${data.date}T23:59:00`,
                 visitors,
+                singleEntry: data.type === "Guest" ? data.singleEntry : false,
             }
             const response = await httpClient.post<{ groupId: string; qrToken: string; expiresAt: string }>("/visitors/groups", request)
             return {
@@ -1319,8 +1325,8 @@ export const api = {
         getExpectedVisitors: async (): Promise<SecurityVisitorEntry[]> => {
             try {
                 const groups = await httpClient.get<any[]>("/security/visitors/expected")
-                return groups.flatMap(g => g.visitors.map((v: any) => ({
-                    id: g.id,
+                return groups.flatMap(g => g.visitors.map((v: any, idx: number) => ({
+                    id: `${g.id}-${v.id || idx}`,
                     visitorName: v.name,
                     unitNumber: g.unit?.unitNumber || "",
                     status: 'EXPECTED',
@@ -1338,19 +1344,20 @@ export const api = {
 
         getInsideVisitors: async (): Promise<SecurityVisitorEntry[]> => {
             try {
-                const logs = await httpClient.get<any[]>("/security/visitors/inside")
+                const logs = await httpClient.get<any[]>("/security/logs/visitors")
                 return logs.map(log => ({
                     id: log.id,
                     visitorName: log.group?.visitors?.[0]?.name || "Unknown",
                     unitNumber: log.group?.unit?.unitNumber || "",
-                    status: 'INSIDE',
+                    status: log.status === 'ENTERED' && !log.exitAt ? 'INSIDE' : 'EXITED',
                     type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
                     entryTime: log.entryAt,
+                    exitTime: log.exitAt,
                     mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
                     photoUrl: log.photoUrl,
                     gateId: log.gateId,
-                    approvalType: log.scanMethod === 'QR' ? 'Pre-approved' : 'Sudden',
-                } as SecurityVisitorEntry))
+                    approvalType: log.scanMethod === 'QR' || log.group?.shortCode ? 'Pre-approved' : 'Sudden',
+                } as SecurityVisitorEntry)).filter((log) => log.status === 'INSIDE')
             } catch {
                 return []
             }
@@ -1358,19 +1365,21 @@ export const api = {
 
         getVisitorHistory: async (): Promise<SecurityVisitorEntry[]> => {
             try {
-                const logs = await httpClient.get<any[]>("/security/visitors/history")
-                return logs.map(log => ({
-                    id: log.id,
-                    visitorName: log.group?.visitors?.[0]?.name || "Unknown",
-                    unitNumber: log.group?.unit?.unitNumber || "",
-                    status: log.status,
-                    type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
-                    entryTime: log.entryAt,
-                    exitTime: log.exitAt,
-                    mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
-                    photoUrl: log.photoUrl,
-                    approvalType: log.scanMethod === 'QR' ? 'Pre-approved' : 'Sudden',
-                } as SecurityVisitorEntry))
+                const logs = await httpClient.get<any[]>("/security/logs/visitors")
+                return logs
+                    .map(log => ({
+                        id: log.id,
+                        visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                        unitNumber: log.group?.unit?.unitNumber || "",
+                        status: log.status === 'ENTERED' && !log.exitAt ? 'INSIDE' : log.status,
+                        type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                        entryTime: log.entryAt,
+                        exitTime: log.exitAt,
+                        mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                        photoUrl: log.photoUrl,
+                        approvalType: log.scanMethod === 'QR' || log.group?.shortCode ? 'Pre-approved' : 'Sudden',
+                    } as SecurityVisitorEntry))
+                    .filter((log) => log.status === 'EXITED' || log.status === 'DENIED')
             } catch {
                 return []
             }
@@ -1379,11 +1388,12 @@ export const api = {
         scanVisitor: async (data: ScanVisitorRequest): Promise<SecurityVisitorEntry> => {
             const response = await httpClient.post<any>("/security/visitors/scan", data)
             const log = response.log;
+            const deniedReason = response.warning === 'DUPLICATE_SCAN' ? 'Duplicate scan (already inside)' : undefined;
             return {
                 id: log.id,
                 visitorName: log.group?.visitors?.[0]?.name || "Unknown",
                 unitNumber: log.group?.unit?.unitNumber || "",
-                status: response.status === 'ENTERED' ? 'INSIDE' : 'EXITED',
+                status: log.status === 'ENTERED' ? 'INSIDE' : log.status,
                 type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
                 entryTime: log.entryAt,
                 exitTime: log.exitAt,
@@ -1391,7 +1401,29 @@ export const api = {
                 photoUrl: log.photoUrl,
                 gateId: log.gateId,
                 approvalType: 'Pre-approved', // specific to QR scan
-                qrCode: data.qrToken
+                qrCode: data.qrToken,
+                deniedReason,
+            } as SecurityVisitorEntry
+        },
+
+        scanVisitorCode: async (data: { code: string; gateId?: string }): Promise<SecurityVisitorEntry> => {
+            const response = await httpClient.post<any>("/security/visitors/scan-code", data)
+            const log = response.log;
+            const deniedReason = response.warning === 'DUPLICATE_SCAN' ? 'Duplicate scan (already inside)' : undefined;
+            return {
+                id: log.id,
+                visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                unitNumber: log.group?.unit?.unitNumber || "",
+                status: log.status === 'ENTERED' ? 'INSIDE' : log.status,
+                type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                entryTime: log.entryAt,
+                exitTime: log.exitAt,
+                mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                photoUrl: log.photoUrl,
+                gateId: log.gateId,
+                approvalType: 'Pre-approved',
+                qrCode: data.code,
+                deniedReason,
             } as SecurityVisitorEntry
         },
 
@@ -1560,4 +1592,3 @@ export const getMyEvents = async (): Promise<CommunityEvent[]> => {
 export const getEventDetails = async (id: string): Promise<CommunityEvent> => {
     return httpClient.get<CommunityEvent>(`/events/${id}`)
 }
-

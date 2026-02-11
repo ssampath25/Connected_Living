@@ -52,7 +52,29 @@ export default function SecurityScannerPage() {
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (code.length >= 4) {
-            handleQrScan(code)
+            setIsLoading(true)
+            setScanStatus("idle")
+            setErrorMessage("")
+            // 4-digit manual code uses scan-code endpoint
+            api.security.scanVisitorCode({ code })
+                .then((visitor) => {
+                    setScannedVisitor(visitor)
+                    setScanStatus("success")
+                    if (visitor.status === 'INSIDE') {
+                        toast.success(`Welcome ${visitor.visitorName}`, { description: `Unit ${visitor.unitNumber} - Checked In` })
+                    } else {
+                        toast.success(`Goodbye ${visitor.visitorName}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
+                    }
+                })
+                .catch((error) => {
+                    console.error(error)
+                    setScanStatus("error")
+                    setErrorMessage("Invalid Code or Scan Failed")
+                    toast.error("Scan Failed")
+                    setTimeout(() => setScanStatus("idle"), 3000)
+                })
+                .finally(() => setIsLoading(false))
+            return
         }
     }
 
@@ -170,6 +192,11 @@ export default function SecurityScannerPage() {
                                                 <p className="font-medium">{scannedVisitor.type}</p>
                                             </div>
                                         </div>
+                                        {scannedVisitor.status === "DENIED" && (
+                                            <div className="mt-3 text-xs text-red-400">
+                                                Reason: {scannedVisitor.deniedReason || "Access denied"}
+                                            </div>
+                                        )}
                                     </div>
                                 </>
                             )}
