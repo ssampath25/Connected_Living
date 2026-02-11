@@ -151,7 +151,7 @@ export default function SecurityVisitorsPage() {
 
     if (loading) {
         return (
-            <div className="p-6 space-y-6 pb-24 lg:pl-72">
+            <div className="p-6 space-y-6 pb-24">
                 <div className="flex justify-between items-center">
                     <Skeleton className="h-8 w-32" />
                     <Skeleton className="h-10 w-10 rounded-full" />
@@ -168,12 +168,12 @@ export default function SecurityVisitorsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background pb-24 lg:pl-64 transition-all duration-300">
+        <div className="min-h-screen bg-background pb-24 transition-all duration-300">
             {/* Header */}
-            <div className="sticky top-0 bg-background/80 backdrop-blur-xl z-20 border-b border-border p-4 lg:p-6 transition-all">
-                <div className="flex items-center justify-between max-w-5xl mx-auto">
+            <div className="sticky top-0 bg-background/80 backdrop-blur-xl z-20 border-b border-border p-4 lg:px-8 lg:py-6 transition-all">
+                <div className="flex items-center justify-between max-w-5xl lg:max-w-full mx-auto">
                     <div className="flex items-center gap-3">
-                        <Link href="/gate" className="p-2 -ml-2 text-foreground hover:bg-accent rounded-full transition-all active:scale-95">
+                        <Link href="/gate" className="lg:hidden p-2 -ml-2 text-foreground hover:bg-accent rounded-full transition-all active:scale-95">
                             <ArrowLeft size={24} />
                         </Link>
                         <div>
@@ -214,7 +214,7 @@ export default function SecurityVisitorsPage() {
                 </div>
             </div>
 
-            <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-4">
+            <div className="p-4 lg:px-8 lg:py-6 max-w-5xl lg:max-w-full mx-auto space-y-4 lg:space-y-6">
 
                 {/* Search Bar */}
                 <div className="relative group">
@@ -235,10 +235,10 @@ export default function SecurityVisitorsPage() {
                     <div
                         ref={statsRef}
                         onScroll={handleScroll}
-                        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-4 pb-0 no-scrollbar"
+                        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide gap-4 pb-0 no-scrollbar lg:grid lg:grid-cols-2 lg:overflow-visible"
                     >
                         {/* Currently Inside */}
-                        <div className="min-w-full snap-center bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg flex items-center justify-between gap-4 relative overflow-hidden shrink-0">
+                        <div className="min-w-full lg:min-w-0 snap-center bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg flex items-center justify-between gap-4 relative overflow-hidden shrink-0">
                             <span className="text-green-100 text-xs font-bold uppercase tracking-wide">Currently Inside</span>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-bold tracking-tight text-white">{stats.currentlyInside}</span>
@@ -247,7 +247,7 @@ export default function SecurityVisitorsPage() {
                         </div>
 
                         {/* Attended / Visited */}
-                        <div className="min-w-full snap-center bg-card border border-border rounded-2xl p-6 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden shrink-0">
+                        <div className="min-w-full lg:min-w-0 snap-center bg-card border border-border rounded-2xl p-6 shadow-sm flex items-center justify-between gap-4 relative overflow-hidden shrink-0">
                             <span className="text-muted-foreground text-xs font-bold uppercase tracking-wide">Attended / Visited</span>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-bold tracking-tight text-foreground">{stats.attended}</span>
@@ -257,7 +257,7 @@ export default function SecurityVisitorsPage() {
                     </div>
 
                     {/* Pagination Dots */}
-                    <div className="flex justify-center gap-1.5 absolute bottom-4 left-0 right-0 z-10 pointer-events-none">
+                    <div className="flex lg:hidden justify-center gap-1.5 absolute bottom-4 left-0 right-0 z-10 pointer-events-none">
                         {[0, 1].map(i => {
                             const isGreenCard = activeCardIndex === 0;
                             const activeClass = isGreenCard ? "bg-white ring-black/5" : "bg-primary ring-black/5";
@@ -400,9 +400,9 @@ export default function SecurityVisitorsPage() {
                     }
 
                     {/* Visitor List */}
-                    <div className="space-y-3">
+                    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
                         {currentList.length === 0 ? (
-                            <div className="text-center py-12 text-muted-foreground">
+                            <div className="text-center py-12 text-muted-foreground lg:col-span-2">
                                 <Search className="w-12 h-12 mx-auto mb-3 opacity-20" />
                                 <p>No visitors found for this category</p>
                             </div>

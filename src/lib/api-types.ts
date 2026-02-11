@@ -438,6 +438,8 @@ export interface SOSLogItem {
     time: string;
     status: string;
     message?: string;
+    resolvedBy?: string;
+    resolvedAt?: string;
 }
 
 export interface SecurityVehicleLog {

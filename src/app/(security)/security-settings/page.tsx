@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useTheme } from "next-themes"
-import { Moon, Sun, Monitor, ChevronLeft, Shield, User, Clock, LogOut, ChevronRight } from "lucide-react"
+import { Moon, Sun, Monitor, ChevronLeft, Shield, User, Clock, LogOut, ChevronRight, ShieldAlert } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
@@ -70,6 +70,22 @@ export default function SecuritySettingsPage() {
                         <section className="space-y-3">
                             <h2 className="text-sm font-bold text-muted-foreground uppercase tracking-wider ml-1">Settings</h2>
                             <div className="bg-card rounded-2xl overflow-hidden border border-border divide-y divide-border/50">
+                                <Link
+                                    href="/security-settings/blacklist"
+                                    className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"
+                                >
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
+                                            <ShieldAlert size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <h3 className="font-bold text-foreground">Blacklist Management</h3>
+                                            <p className="text-xs text-muted-foreground">Flagged individuals & alerts</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={20} className="text-muted-foreground" />
+                                </Link>
+
                                 <button
                                     onClick={() => setCurrentView("appearance")}
                                     className="w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors"

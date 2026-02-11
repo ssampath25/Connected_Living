@@ -120,7 +120,7 @@ export default function SecurityVehiclesPage() {
     return (
         <div className="flex flex-col min-h-screen bg-background pb-24 lg:pb-0">
             {/* Header */}
-            <div className="bg-card px-6 py-6 rounded-b-[2rem] border-b border-border shadow-sm sticky top-0 z-20">
+            <div className="bg-card px-6 py-6 rounded-b-[2rem] lg:rounded-none border-b border-border shadow-sm sticky top-0 z-20">
                 <div className="flex items-center gap-3 mb-4">
                     <Link href="/gate" className="lg:hidden p-2 -ml-2 hover:bg-accent rounded-full">
                         <ChevronLeft className="h-6 w-6" />
@@ -188,9 +188,9 @@ export default function SecurityVehiclesPage() {
             </div>
 
             {/* Vehicles List */}
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
                 {filteredVehicles.length === 0 ? (
-                    <div className="text-center py-12">
+                    <div className="text-center py-12 lg:col-span-2">
                         <Car size={48} className="mx-auto text-muted-foreground mb-4" />
                         <p className="text-muted-foreground font-medium">No vehicles found</p>
                     </div>
@@ -250,7 +250,7 @@ export default function SecurityVehiclesPage() {
             {/* Add Vehicle Modal */}
             {showAddModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-card rounded-3xl p-6 w-full max-w-md shadow-2xl border border-border">
+                    <div className="bg-card rounded-3xl p-6 w-full max-w-md lg:max-w-lg shadow-2xl border border-border">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-bold text-foreground">Add Vehicle Entry</h2>
                             <button

@@ -1,4 +1,4 @@
-import {
+﻿import {
     CreditCard, UserPlus, AlertTriangle, Calendar, MessageSquare, Tag, Shield, Users,
     Truck, Car, Waves, Dumbbell, PartyPopper, Zap, Wrench, Package, Hammer, Droplets, Receipt, Flame, AlertCircle, PlugZap,
     Megaphone, ClipboardList, Boxes, UserCheck, Radio, Home
@@ -277,6 +277,54 @@ export interface AttendanceItem {
     status: "Present" | "Absent" | "Half-day"
 }
 
+export interface BlacklistItem {
+    id: string
+    name: string
+    reason: string
+    date: string
+    photo?: string
+    reportedBy: string
+}
+
+
+
+const MOCK_SOS_LOGS: SOSLogItem[] = [
+    { id: "SOS-1", unitId: "A-101", residentName: "Vikram Singh", location: "Inside Unit", time: "10 mins ago", status: "Active" },
+    { id: "SOS-2", unitId: "B-202", residentName: "Priya", location: "Clubhouse", time: "2 days ago", status: "Resolved", resolvedBy: "Ramesh Guard", resolvedAt: "2 days ago" }
+]
+
+const MOCK_SAVED_VISITORS: SavedVisitorItem[] = [
+    { id: "SV-1", name: "Mohan", type: "Guest", relation: "Tution Teacher", phone: "9876543210", email: "mohan@tutor.com", lastVisit: "2 days ago", avatar: "M" },
+    { id: "SV-2", name: "Ramesh Electrician", type: "Guest", relation: "Service", phone: "9870000000", lastVisit: "1 week ago", avatar: "R" },
+    { id: "SV-6", name: "Priya Singh", type: "Guest", relation: "Sister", phone: "9988776611", lastVisit: "Today", avatar: "P" },
+]
+
+const MOCK_FREQUENT_VISITORS: FrequentVisitorItem[] = [
+    { id: "FV-1", name: "Sunita Helper", type: "Staff", relation: "Maid", validUntil: "2024-12-31", allowedTimeSlot: "Morning (8am-12pm)", isActive: true, avatar: "S" },
+    { id: "FV-2", name: "School Van", type: "Cab", relation: "Daily Drop", validUntil: "2024-06-30", allowedTimeSlot: "Afternoon (2pm-4pm)", isActive: true },
+]
+
+const MOCK_BLACKLIST: BlacklistItem[] = [
+    { id: "BL-1", name: "Blacklist User", reason: "Repeated disturbance and abuse to staff.", date: "2024-01-15", reportedBy: "Ramesh Guard" },
+    { id: "BL-2", name: "Unknown Vendor", reason: "Tried to enter without valid approval multiple times.", date: "2024-02-01", reportedBy: "Suresh Supervisor" }
+]
+
+const MOCK_VEHICLE_ENTRIES: VehicleEntryItem[] = [
+    // Today's entries
+    { id: "VE-1", vehicleNumber: "KA-01-AB-1234", type: "Car", ownerName: "Vikram Sharma", unitId: "A-101", status: "Inside", entryTime: "9:30 AM", date: new Date().toISOString().split('T')[0], purpose: "Resident" },
+    { id: "VE-2", vehicleNumber: "KA-05-CD-5678", type: "Bike", ownerName: "Priya Patel", unitId: "B-205", status: "Inside", entryTime: "10:15 AM", date: new Date().toISOString().split('T')[0], purpose: "Resident" },
+    { id: "VE-3", vehicleNumber: "KA-03-EF-9012", type: "Car", ownerName: "Rahul Kumar", unitId: "A-302", status: "Exited", entryTime: "8:00 AM", exitTime: "11:30 AM", date: new Date().toISOString().split('T')[0], purpose: "Resident" },
+    { id: "VE-4", vehicleNumber: "KA-02-GH-3456", type: "Truck", ownerName: "Delivery - Amazon", unitId: "C-101", status: "Inside", entryTime: "11:00 AM", date: new Date().toISOString().split('T')[0], purpose: "Delivery" },
+    { id: "VE-5", vehicleNumber: "KA-04-IJ-7890", type: "Auto", ownerName: "Cab for A-201", unitId: "A-201", status: "Exited", entryTime: "9:45 AM", exitTime: "10:00 AM", date: new Date().toISOString().split('T')[0], purpose: "Cab" },
+    { id: "VE-6", vehicleNumber: "KA-06-KL-2345", type: "Car", ownerName: "Guest of B-303", unitId: "B-303", status: "Inside", entryTime: "2:15 PM", date: new Date().toISOString().split('T')[0], purpose: "Guest" },
+
+    // Yesterday's entries
+    { id: "VE-7", vehicleNumber: "KA-07-MN-6789", type: "Bike", ownerName: "Amit Singh", unitId: "A-105", status: "Exited", entryTime: "7:30 AM", exitTime: "6:45 PM", date: new Date(Date.now() - 86400000).toISOString().split('T')[0], purpose: "Resident" },
+    { id: "VE-8", vehicleNumber: "KA-08-OP-3456", type: "Car", ownerName: "Swiggy Delivery", unitId: "C-202", status: "Exited", entryTime: "1:15 PM", exitTime: "1:30 PM", date: new Date(Date.now() - 86400000).toISOString().split('T')[0], purpose: "Delivery" },
+    { id: "VE-9", vehicleNumber: "KA-09-QR-7890", type: "Auto", ownerName: "Ola Cab", unitId: "A-401", status: "Exited", entryTime: "8:00 AM", exitTime: "8:15 AM", date: new Date(Date.now() - 86400000).toISOString().split('T')[0], purpose: "Cab" },
+    { id: "VE-10", vehicleNumber: "KA-10-ST-1234", type: "Truck", ownerName: "Furniture Delivery", unitId: "B-101", status: "Exited", entryTime: "10:00 AM", exitTime: "11:45 AM", date: new Date(Date.now() - 86400000).toISOString().split('T')[0], purpose: "Delivery" },
+]
+
 export interface BookingItem {
     id: string
     userId: string
@@ -419,7 +467,7 @@ function transformInvoice(invoice: Invoice): PaymentItem {
         id: invoice.id,
         unitId: invoice.unitId,
         title: `${invoice.type} - ${new Date(invoice.dueDate).toLocaleDateString()}`,
-        amount: `₹${invoice.amount.toLocaleString()}`,
+        amount: `â‚¹${invoice.amount.toLocaleString()}`,
         dueDate: new Date(invoice.dueDate).toLocaleDateString(),
         status: invoice.status === "PAID" ? "Paid" : invoice.status === "OVERDUE" ? "Overdue" : "Pending",
         category: invoice.type === "MAINTENANCE" ? "Rentals" : "Utilities",
@@ -515,6 +563,26 @@ function transformVisitorGroup(group: VisitorGroup): VisitorItem {
 // ==========================================
 
 export const api = {
+    // BLACKLIST Methods (Carried over from Old API)
+    getBlacklist: async (): Promise<BlacklistItem[]> => new Promise(resolve => setTimeout(() => resolve(MOCK_BLACKLIST), 400)),
+    addToBlacklist: async (item: Omit<BlacklistItem, "id" | "date">): Promise<boolean> => {
+        const newItem: BlacklistItem = {
+            ...item,
+            id: `BL-${Date.now()}`,
+            date: new Date().toISOString().split('T')[0]
+        }
+        MOCK_BLACKLIST.unshift(newItem)
+        return new Promise(resolve => setTimeout(() => resolve(true), 800))
+    },
+    removeFromBlacklist: async (id: string): Promise<boolean> => {
+        const index = MOCK_BLACKLIST.findIndex(b => b.id === id)
+        if (index !== -1) {
+            MOCK_BLACKLIST.splice(index, 1)
+            return new Promise(resolve => setTimeout(() => resolve(true), 600))
+        }
+        return false
+    },
+
     // ==========================================
     // AUTH
     // ==========================================
@@ -1526,7 +1594,27 @@ export const api = {
             }
         },
     },
-}
+
+
+    getSOSLogs: async (): Promise<SOSLogItem[]> => {
+        try {
+            const alerts = await httpClient.get<any[]>("/security/emergency-alerts")
+            return alerts.map((alert: any) => ({
+                id: alert.id,
+                unitId: "Unknown",
+                residentName: "Resident",
+                location: "Community",
+                time: new Date(alert.createdAt).toLocaleTimeString(),
+                status: "Active",
+                resolvedBy: undefined,
+                resolvedAt: undefined
+            }))
+        } catch {
+            return []
+        }
+    },
+} // End of api object
+
 
 // ==========================================
 // Icon Helper
