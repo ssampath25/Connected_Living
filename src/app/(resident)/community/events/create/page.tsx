@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Calendar, Clock, MapPin, AlignLeft, Image as ImageIcon, Users, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api } from "@/lib/api"
+import { createCommunityEvent } from "@/lib/api"
 
 export default function CreateEventPage() {
     const router = useRouter()
@@ -35,22 +35,22 @@ export default function CreateEventPage() {
         }
 
         try {
-            await api.createCommunityEvent({
+            // Combine date and time into ISO format
+            const eventDate = new Date(`${formData.date}T${formData.time}:00`)
+
+            await createCommunityEvent({
                 title: formData.title,
                 description: formData.description,
-                time: `${formData.date} at ${formData.time}`, // Format for display
+                eventDate: eventDate.toISOString(),
                 location: formData.location,
-                // In a real app we would store the capacity/limit separately or in meta. 
-                // For now we just create the event.
+                capacity: formData.participants ? parseInt(formData.participants) : undefined,
             })
 
-            // Mock delay
-            await new Promise(resolve => setTimeout(resolve, 1000))
-
+            alert("Event submitted for approval! You can track its status in 'My Events'.")
             router.push("/community/events")
-            // In a real app, we'd show a toast here saying "Event submitted for approval"
         } catch (error) {
             console.error("Failed to create event", error)
+            alert("Failed to create event. Please try again.")
         } finally {
             setLoading(false)
         }

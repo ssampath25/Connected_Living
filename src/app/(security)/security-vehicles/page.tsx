@@ -36,7 +36,8 @@ export default function SecurityVehiclesPage() {
         setLoading(true)
         try {
             const dateStr = selectedDate.toISOString().split('T')[0]
-            const data = await api.getVehicleEntries(dateStr)
+            // Use getVehicleHistory regardless of date for now, as it supports date filtering
+            const data = await api.security.getVehicleHistory(dateStr)
             setVehicles(data)
         } catch (error) {
             console.error("Failed to fetch vehicles:", error)
@@ -55,7 +56,7 @@ export default function SecurityVehiclesPage() {
 
         setIsSubmitting(true)
         try {
-            await api.addVehicleEntry(formData)
+            await api.security.logVehicleEntry(formData)
             toast.success("Vehicle entry added successfully")
             setShowAddModal(false)
             setFormData({
@@ -76,7 +77,16 @@ export default function SecurityVehiclesPage() {
 
     const handleMarkExit = async (id: string, vehicleNumber: string) => {
         try {
-            await api.markVehicleExit(id)
+            // Need unitId and gateId for exit... api.security.logVehicleExit needs object
+            // But logVehicleExit in api.ts takes { vehicleNumber, unitId, ... }
+            // We have vehicle from list.
+            const vehicle = vehicles.find(v => v.id === id)
+            if (!vehicle) return
+
+            await api.security.logVehicleExit({
+                vehicleNumber,
+                unitId: vehicle.unitId
+            })
             toast.success(`${vehicleNumber} marked as exited`)
             fetchVehicles()
         } catch (error) {

@@ -5,11 +5,12 @@ import { Users, Car, Video, UserPlus, Shield, AlertTriangle, Package, Truck, Arr
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api, VisitorItem } from "@/lib/api"
+import { api, SecurityVisitorEntry } from "@/lib/api"
 
 interface SecurityStats {
     totalVisitorsToday: number
     visitorsInside: number
+    vehiclesInside: number
     overstayAlerts: number
     guests: number
     cabs: number
@@ -29,30 +30,37 @@ export default function SecurityGateDashboard() {
         custom: 0
     })
     const [sosAlerts, setSosAlerts] = useState<number>(0)
-    const [recentVisitors, setRecentVisitors] = useState<VisitorItem[]>([])
+    const [recentVisitors, setRecentVisitors] = useState<SecurityVisitorEntry[]>([])
     const [currentGate] = useState("Gate 1")
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [visitors, sosStatus] = await Promise.all([
-                    api.getVisitors(),
+                const [dashboardStats, insideVisitors, history, sosStatus] = await Promise.all([
+                    api.security.getDashboardStats(),
+                    api.security.getInsideVisitors(),
+                    api.security.getVisitorHistory(),
                     api.getSOSStatus()
                 ])
 
-                const todayVisitors = visitors.length
-                const insideCount = visitors.filter((v: VisitorItem) => v.status === "Inside").length
-                const overstay = visitors.filter((v: VisitorItem) => v.status === "Inside").length
+                // Calculate breakdown from inside visitors
+                const guestCount = insideVisitors.filter(v => v.type === "GUEST").length
+                const cabCount = insideVisitors.filter(v => v.type === "CAB").length
+                const deliveryCount = insideVisitors.filter(v => v.type === "DELIVERY").length
+                const customCount = insideVisitors.filter(v => v.type === "SERVICE").length // Mapping Service to Custom
 
-                const guestCount = visitors.filter((v: VisitorItem) => v.type === "Guest").length
-                const cabCount = visitors.filter((v: VisitorItem) => v.type === "Cab").length
-                const deliveryCount = visitors.filter((v: VisitorItem) => v.type === "Delivery").length
-                const customCount = 0
+                // Overstay logic (mock: > 12 hours)
+                const now = new Date().getTime()
+                const overstayCount = insideVisitors.filter(v => {
+                    const entryTime = v.entryTime ? new Date(v.entryTime).getTime() : now
+                    return (now - entryTime) > 12 * 60 * 60 * 1000
+                }).length
 
                 setStats({
-                    totalVisitorsToday: todayVisitors,
-                    visitorsInside: insideCount,
-                    overstayAlerts: overstay > 5 ? 2 : 0,
+                    totalVisitorsToday: dashboardStats.totalEntries || 0,
+                    visitorsInside: insideVisitors.length,
+                    vehiclesInside: dashboardStats.vehiclesInside || 0,
+                    overstayAlerts: overstayCount,
                     guests: guestCount,
                     cabs: cabCount,
                     delivery: deliveryCount,
@@ -60,7 +68,7 @@ export default function SecurityGateDashboard() {
                 })
 
                 setSosAlerts(sosStatus ? 1 : 0)
-                setRecentVisitors(visitors.slice(0, 5))
+                setRecentVisitors(history.slice(0, 5)) // Top 5 recent from history (which acts as log)
             } catch (error) {
                 console.error("Failed to fetch security data", error)
             } finally {
@@ -69,7 +77,7 @@ export default function SecurityGateDashboard() {
         }
         fetchData()
 
-        const interval = setInterval(fetchData, 5000)
+        const interval = setInterval(fetchData, 10000)
         return () => clearInterval(interval)
     }, [])
 
@@ -218,10 +226,12 @@ export default function SecurityGateDashboard() {
                             <h3 className="text-green-600 font-bold text-lg mb-4 uppercase tracking-wide text-center">Visitor Statistics</h3>
 
                             <h4 className="text-sm font-semibold text-muted-foreground mb-3 px-1">Total Visitors</h4>
-                            <div className="grid grid-cols-3 gap-3 mb-6">
-                                <div className="rounded-2xl border-2 border-green-500/20 bg-card p-3 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
-                                    <p className="text-3xl font-bold text-green-600">{stats.totalVisitorsToday}</p>
-                                    <p className="text-[10px] text-muted-foreground font-medium mt-1 leading-tight">Today&apos;s Total</p>
+
+                            {/* Total Visitors Row */}
+                            <div className="grid grid-cols-4 gap-3 lg:gap-4 mb-6">
+                                <div className="rounded-2xl border-2 border-green-500/20 bg-card p-3 lg:p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
+                                    <p className="text-3xl lg:text-4xl font-bold text-green-600">{stats.totalVisitorsToday}</p>
+                                    <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 leading-tight">Today's Total</p>
                                 </div>
                                 <div className="rounded-2xl border-2 border-green-500/20 bg-card p-3 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
                                     <p className="text-3xl font-bold text-green-600">{stats.visitorsInside}</p>
@@ -230,6 +240,10 @@ export default function SecurityGateDashboard() {
                                 <div className="rounded-2xl border-2 border-red-500/20 bg-card p-3 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
                                     <p className="text-3xl font-bold text-red-500">{stats.overstayAlerts}</p>
                                     <p className="text-[10px] text-muted-foreground font-medium mt-1 leading-tight">Overstay</p>
+                                </div>
+                                <div className="rounded-2xl border-2 border-blue-500/20 bg-card p-3 lg:p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
+                                    <p className="text-3xl lg:text-4xl font-bold text-blue-600">{stats.vehiclesInside}</p>
+                                    <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 leading-tight">Vehicles In</p>
                                 </div>
                             </div>
 
@@ -280,20 +294,20 @@ export default function SecurityGateDashboard() {
                                     <div key={idx} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-md hover:border-green-500/10 transition-all">
                                         <div className="flex items-center gap-3">
                                             <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-xs font-bold">
-                                                {visitor.image ? (
-                                                    <img src={visitor.image} alt={visitor.name} className="h-full w-full rounded-full object-cover" />
+                                                {visitor.photoUrl ? (
+                                                    <img src={visitor.photoUrl} alt={visitor.visitorName} className="h-full w-full rounded-full object-cover" />
                                                 ) : (
-                                                    visitor.name.charAt(0)
+                                                    visitor.visitorName.charAt(0)
                                                 )}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-sm text-foreground">{visitor.name}</p>
+                                                <p className="font-semibold text-sm text-foreground">{visitor.visitorName}</p>
                                                 <p className="text-[10px] text-muted-foreground">{visitor.type} • {visitor.status}</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-xs font-medium text-foreground">{visitor.entryTime}</p>
-                                            <p className="text-[10px] text-muted-foreground">Entry</p>
+                                            <p className="text-xs font-medium text-foreground">{visitor.entryTime ? new Date(visitor.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : visitor.startTime}</p>
+                                            <p className="text-[10px] text-muted-foreground">{visitor.entryTime ? "Entry" : "Expected"}</p>
                                         </div>
                                     </div>
                                 ))}

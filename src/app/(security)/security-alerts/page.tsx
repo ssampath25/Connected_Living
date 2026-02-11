@@ -15,12 +15,14 @@ export default function SecurityAlertsPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [active, logs] = await Promise.all([
-                    api.getSOSStatus(),
-                    api.getSOSLogs()
-                ])
-                setSosActive(active)
+                const logs = await api.security.getEmergencyAlerts()
+                // Determining active status from logs for now, or just use logs length > 0 if active alerts are cleared?
+                // The mock UI used sosActive boolean.
+                // Let's assume if there is any 'Active' alert in logs, we set sosActive = true.
+                // My api.security.getEmergencyAlerts returns all alerts as "Active" currently (mock status).
+                // So if list > 0, Active = true.
                 setSosHistory(logs)
+                setSosActive(logs.some(l => l.status === "Active"))
             } catch (error) {
                 console.error("Failed to fetch alerts", error)
             } finally {
@@ -30,9 +32,10 @@ export default function SecurityAlertsPage() {
         fetchData()
 
         const interval = setInterval(async () => {
-            const active = await api.getSOSStatus()
-            setSosActive(active)
-        }, 3000)
+            const logs = await api.security.getEmergencyAlerts()
+            setSosHistory(logs)
+            setSosActive(logs.some(l => l.status === "Active"))
+        }, 5000)
 
         return () => clearInterval(interval)
     }, [])

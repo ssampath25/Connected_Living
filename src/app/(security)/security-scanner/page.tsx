@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react"
 import { ScanLine, CheckCircle, XCircle, Search, User, Loader2, QrCode, Smartphone, Camera, RefreshCcw, ArrowLeft } from "lucide-react"
-import { api, VisitorItem } from "@/lib/api"
+import { api, SecurityVisitorEntry } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 export default function SecurityScannerPage() {
     const [code, setCode] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [scannedVisitor, setScannedVisitor] = useState<VisitorItem | null>(null)
+    const [scannedVisitor, setScannedVisitor] = useState<SecurityVisitorEntry | null>(null)
     const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle")
     const [errorMessage, setErrorMessage] = useState("")
     const [isCameraActive, setIsCameraActive] = useState(true)
@@ -38,20 +38,10 @@ export default function SecurityScannerPage() {
         setIsLoading(true)
 
         try {
-            const visitors = await api.getVisitors()
-            const visitor = visitors.find(v => v.code === data)
-
-            if (!visitor) {
-                setScanStatus("error")
-                setErrorMessage("Invalid Code. Visitor not found.")
-                toast.error("Invalid QR Code")
-                setTimeout(() => setScanStatus("idle"), 3000)
-                setIsLoading(false)
-                return
-            }
+            const visitor = await api.security.scanVisitor({ qrToken: data })
 
             // Blacklist Check
-            const { isBlacklisted, reason } = await checkBlacklist(visitor.name)
+            const { isBlacklisted, reason } = await checkBlacklist(visitor.visitorName)
             if (isBlacklisted) {
                 setScanStatus("error")
                 setErrorMessage(`BLACKLISTED: ${reason}`)
@@ -61,32 +51,21 @@ export default function SecurityScannerPage() {
                 return
             }
 
-            if (visitor.status === "Expected") {
-                await api.checkInVisitor(visitor.id)
-                setScannedVisitor({ ...visitor, status: "Inside" })
-                setScanStatus("success")
-                toast.success(`Welcome ${visitor.name}`, { description: `Unit ${visitor.unitId} - Checked In` })
-            } else if (visitor.status === "Inside") {
-                await api.checkOutVisitor(visitor.id)
-                setScannedVisitor({ ...visitor, status: "Left" })
-                setScanStatus("success")
-                toast.success(`Goodbye ${visitor.name}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
-            } else if (visitor.status === "Left") {
-                setScanStatus("error")
-                setErrorMessage("Visitor already left.")
-                toast.warning("Already Checked Out")
-                setTimeout(() => setScanStatus("idle"), 3000)
+            setScannedVisitor(visitor)
+            setScanStatus("success")
+
+            if (visitor.status === 'INSIDE') {
+                toast.success(`Welcome ${visitor.visitorName}`, { description: `Unit ${visitor.unitNumber} - Checked In` })
+            } else if (visitor.status === 'EXITED') {
+                toast.success(`Goodbye ${visitor.visitorName}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
             } else {
-                setScanStatus("error")
-                setErrorMessage(`Status: ${visitor.status}. Cannot process.`)
-                toast.error(`Status: ${visitor.status}`)
-                setTimeout(() => setScanStatus("idle"), 3000)
+                toast.success(`Scanned ${visitor.visitorName}`, { description: `Status: ${visitor.status}` })
             }
 
         } catch (error) {
             console.error(error)
             setScanStatus("error")
-            setErrorMessage("Failed to process code.")
+            setErrorMessage("Invalid Code or Scan Failed")
             toast.error("Scan Failed")
             setTimeout(() => setScanStatus("idle"), 3000)
         } finally {
@@ -97,7 +76,29 @@ export default function SecurityScannerPage() {
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         if (code.length >= 4) {
-            handleQrScan(code)
+            setIsLoading(true)
+            setScanStatus("idle")
+            setErrorMessage("")
+            // 4-digit manual code uses scan-code endpoint
+            api.security.scanVisitorCode({ code })
+                .then((visitor) => {
+                    setScannedVisitor(visitor)
+                    setScanStatus("success")
+                    if (visitor.status === 'INSIDE') {
+                        toast.success(`Welcome ${visitor.visitorName}`, { description: `Unit ${visitor.unitNumber} - Checked In` })
+                    } else {
+                        toast.success(`Goodbye ${visitor.visitorName}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
+                    }
+                })
+                .catch((error) => {
+                    console.error(error)
+                    setScanStatus("error")
+                    setErrorMessage("Invalid Code or Scan Failed")
+                    toast.error("Scan Failed")
+                    setTimeout(() => setScanStatus("idle"), 3000)
+                })
+                .finally(() => setIsLoading(false))
+            return
         }
     }
 
@@ -111,48 +112,109 @@ export default function SecurityScannerPage() {
 
     /* ===== Inline JSX helpers (not components — just variables) ===== */
 
-    const scannerViewfinder = isCameraActive ? (
-        <div className="relative w-full h-full">
-            <Scanner
-                onScan={(result) => {
-                    if (result && result.length > 0) {
-                        handleQrScan(result[0].rawValue)
-                    }
-                }}
-                constraints={{
-                    facingMode: cameraFacing
-                }}
-                components={{
-                    audio: false,
-                    onOff: false,
-                    finder: false,
-                    torch: false
-                }}
-                styles={{
-                    container: { width: '100%', height: '100%' },
-                    video: { objectFit: 'cover', width: '100%', height: '100%' }
-                }}
-            />
-            {/* Overlay Elements */}
-            <div className="absolute inset-0 z-10 pointer-events-none h-full w-full">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-green-500/50 rounded-3xl bg-green-500/5 shadow-[0_0_100px_rgba(34,197,94,0.2)] animate-pulse">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-green-500/80 shadow-[0_0_20px_rgba(34,197,94,1)] animate-scan-line" />
-                    <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-500 rounded-tl-xl" />
-                    <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-500 rounded-tr-xl" />
-                    <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-500 rounded-bl-xl" />
-                    <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-green-500 rounded-br-xl" />
+    const scannerViewfinder = (
+        <div className="flex-1 relative bg-black flex items-center justify-center min-h-[40vh] transition-all duration-300">
+            {isCameraActive ? (
+                <div className="relative w-full h-full min-h-[40vh]">
+                    <Scanner
+                        onScan={(result) => {
+                            if (result && result.length > 0) {
+                                handleQrScan(result[0].rawValue)
+                            }
+                        }}
+                        constraints={{
+                            facingMode: cameraFacing
+                        }}
+                        components={{
+                            audio: false,
+                            onOff: false,
+                            finder: false,
+                            torch: false
+                        }}
+                        styles={{
+                            container: { width: '100%', height: '100%' },
+                            video: { objectFit: 'cover', width: '100%', height: '100%' }
+                        }}
+                    />
+                    {/* Overlay Elements */}
+                    <div className="absolute inset-0 z-10 pointer-events-none h-full w-full">
+                        {/* Scan Frame */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-green-500/50 rounded-3xl bg-green-500/5 shadow-[0_0_100px_rgba(34,197,94,0.2)] animate-pulse">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-green-500/80 shadow-[0_0_20px_rgba(34,197,94,1)] animate-scan-line" />
+
+                            {/* Corners */}
+                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-green-500 rounded-tl-xl" />
+                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-green-500 rounded-tr-xl" />
+                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-green-500 rounded-bl-xl" />
+                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-green-500 rounded-br-xl" />
+                        </div>
+
+                        <p className="absolute top-3/4 left-0 right-0 text-center text-white/70 text-sm font-medium animate-pulse mt-8">
+                            Point camera at visitor code
+                        </p>
+                    </div>
                 </div>
-                <p className="absolute top-3/4 left-0 right-0 text-center text-white/70 text-sm font-medium animate-pulse mt-8">
-                    Point camera at visitor code
-                </p>
-            </div>
-        </div>
-    ) : (
-        <div className="flex flex-col items-center justify-center text-zinc-500 gap-4 py-20">
-            <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                <Camera size={32} />
-            </div>
-            <p>Camera Paused</p>
+            ) : (
+                <div className="flex flex-col items-center justify-center text-zinc-500 gap-4 min-h-[40vh]">
+                    <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                        <Camera size={32} />
+                    </div>
+                    <p>Camera Paused</p>
+                </div>
+            )}
+
+            {/* Success/Error Overlay */}
+            {scanStatus !== "idle" && (
+                <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200 h-full w-full">
+                    <div className={cn(
+                        "w-full max-w-sm bg-card text-card-foreground rounded-3xl p-6 shadow-2xl border flex flex-col items-center text-center gap-4",
+                        scanStatus === "success" ? "border-green-500/20 bg-zinc-900" : "border-red-500/20 bg-zinc-900"
+                    )}>
+                        <div className={cn(
+                            "w-16 h-16 rounded-full flex items-center justify-center mb-2",
+                            scanStatus === "success" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                        )}>
+                            {scanStatus === "success" ? <CheckCircle size={32} /> : <XCircle size={32} />}
+                        </div>
+
+                        {scanStatus === "success" && scannedVisitor && (
+                            <>
+                                <h2 className="text-xl font-bold">{scannedVisitor.status === "INSIDE" ? "Access Granted" : "Checked Out"}</h2>
+                                <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
+                                    <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Visitor</p>
+                                    <p className="text-lg font-semibold">{scannedVisitor.visitorName}</p>
+                                    <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
+                                        <div className="text-left">
+                                            <p className="text-xs text-muted-foreground">Unit</p>
+                                            <p className="font-mono">{scannedVisitor.unitNumber}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-xs text-muted-foreground">Type</p>
+                                            <p className="font-medium">{scannedVisitor.type}</p>
+                                        </div>
+                                    </div>
+                                    {scannedVisitor.status === "DENIED" && (
+                                        <div className="mt-3 text-xs text-red-400">
+                                            Reason: {scannedVisitor.deniedReason || "Access denied"}
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {scanStatus === "error" && (
+                            <>
+                                <h2 className="text-xl font-bold text-red-500">Scan Failed</h2>
+                                <p className="text-muted-foreground">{errorMessage}</p>
+                            </>
+                        )}
+
+                        <Button onClick={resetScan} className="w-full rounded-xl mt-2" variant={scanStatus === "success" ? "default" : "destructive"}>
+                            {scanStatus === "success" ? "Scan Next" : "Try Again"}
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 
@@ -171,14 +233,14 @@ export default function SecurityScannerPage() {
 
                 {scanStatus === "success" && scannedVisitor && (
                     <>
-                        <h2 className="text-xl font-bold">{scannedVisitor.status === "Inside" ? "Access Granted" : "Checked Out"}</h2>
+                        <h2 className="text-xl font-bold">{scannedVisitor.status === "INSIDE" ? "Access Granted" : "Checked Out"}</h2>
                         <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
                             <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Visitor</p>
-                            <p className="text-lg font-semibold">{scannedVisitor.name}</p>
+                            <p className="text-lg font-semibold">{scannedVisitor.visitorName}</p>
                             <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
                                 <div className="text-left">
                                     <p className="text-xs text-muted-foreground">Unit</p>
-                                    <p className="font-mono">{scannedVisitor.unitId}</p>
+                                    <p className="font-mono">{scannedVisitor.unitNumber}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs text-muted-foreground">Type</p>
@@ -252,8 +314,33 @@ export default function SecurityScannerPage() {
                 {/* Camera Viewport */}
                 <div className="flex-1 relative bg-black flex items-center justify-center min-h-[40vh] transition-all duration-300">
                     {scannerViewfinder}
-                    {scanResultOverlay}
+                    {/* remove scanResultOverlay here if incorporated in scannerViewfinder logic? */}
+                    {/* Wait, scannerViewfinder HAS overlay LOGIC inside it now */}
+                    {/* But mobile layout uses scannerViewfinder AND scanResultOverlay */}
+                    {/* HEAD version used BOTH in return */}
+                    {/* But Incoming logic in scannerViewfinder included it */}
+                    {/* If I include it in scannerViewfinder, I might double rendering it? */}
+                    {/* No, scannerViewfinder variable HAS it. */}
+                    {/* But I also defined `scanResultOverlay` variable below? */}
+                    {/* Yes, lines 283-328 define it. */}
+                    {/* And line 379 uses `scanResultOverlay`. */}
+                    {/* If scannerViewfinder ALREADY has it, I shouldn't render it again? */}
+                    {/* Incoming logic put it inside scannerViewfinder. */}
+                    {/* So I should REMOVE `scanResultOverlay` from render if I use Incoming's scannerViewfinder? */}
+                    {/* YES. */}
                 </div>
+
+                {/* But wait, desktop layout uses `scanResultOverlay` separately? */}
+                {/* Desktop: Line 447 `{scanResultOverlay}`. */}
+                {/* If scannerViewfinder includes it, then desktop has it inside `scannerViewfinder` too. */}
+                {/* In Desktop, `scannerViewfinder` is in Left column. `scanResultOverlay` is overlaid on it. */}
+                {/* If I bake it into `scannerViewfinder`, then it is fine. */}
+                {/* So I should REMOVE explicit `{scanResultOverlay}` usage. */}
+                {/* And I should decide if I keep `scanResultOverlay` variable definition at all? */}
+                {/* It seems duplicative but maybe useful for Desktop "manual entry" result card? */}
+                {/* In Desktop (457), there is "Last Scan Result Card" (499). This is NOT overlay. */}
+                {/* So `scanResultOverlay` variable usage in Mobile (379) and Desktop (447) should be removed if `scannerViewfinder` has it. */}
+                {/* I will remove usages of `scanResultOverlay` from JSX. */}
 
                 {/* Controls & Manual Entry */}
                 <div className="w-full bg-background text-foreground rounded-t-3xl p-6 pb-24 space-y-6 flex-shrink-0 z-30 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
@@ -320,7 +407,7 @@ export default function SecurityScannerPage() {
                             <div className="w-full aspect-[4/3] relative bg-black flex items-center justify-center">
                                 {scannerViewfinder}
                             </div>
-                            {scanResultOverlay}
+                            {/* scanResultOverlay removed */}
                         </div>
 
                         {/* Camera controls below scanner */}
@@ -387,7 +474,7 @@ export default function SecurityScannerPage() {
                                     <div>
                                         <h3 className="font-bold text-foreground">
                                             {scanStatus === "success"
-                                                ? (scannedVisitor?.status === "Inside" ? "Access Granted" : "Checked Out")
+                                                ? (scannedVisitor?.status === "INSIDE" ? "Access Granted" : "Checked Out")
                                                 : "Scan Failed"
                                             }
                                         </h3>
@@ -403,16 +490,16 @@ export default function SecurityScannerPage() {
                                             <span className="text-xs text-muted-foreground uppercase tracking-wider">Visitor</span>
                                             <span className={cn(
                                                 "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
-                                                scannedVisitor.status === "Inside" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                                                scannedVisitor.status === "INSIDE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
                                             )}>
                                                 {scannedVisitor.status}
                                             </span>
                                         </div>
-                                        <p className="text-lg font-semibold text-foreground">{scannedVisitor.name}</p>
+                                        <p className="text-lg font-semibold text-foreground">{scannedVisitor.visitorName}</p>
                                         <div className="flex justify-between text-sm pt-2 border-t border-border">
                                             <div>
                                                 <p className="text-xs text-muted-foreground">Unit</p>
-                                                <p className="font-mono font-medium text-foreground">{scannedVisitor.unitId}</p>
+                                                <p className="font-mono font-medium text-foreground">{scannedVisitor.unitNumber}</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs text-muted-foreground">Type</p>

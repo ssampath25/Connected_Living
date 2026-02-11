@@ -74,12 +74,17 @@ export default function NewServiceRequestPage() {
             formData.append("preferredTime", time)
         }
 
-        console.log("Submitting Service Request:", Object.fromEntries(formData))
-
-        // TODO: Call API endpoint here
-        // await api.createServiceRequest(formData)
-
-        router.push('/service-requests')
+        // Call API endpoint
+        try {
+            await api.createServiceRequest({
+                category: selectedCategory,
+                description: description,
+                priority: "MEDIUM" // Default priority
+            })
+            router.push('/service-requests')
+        } catch (error) {
+            console.error("Failed to create request:", error)
+        }
     }
 
     return (

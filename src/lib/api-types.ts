@@ -44,13 +44,15 @@ export interface ResidentProfile {
 // --- Visitors ---
 export interface VisitorGroup {
     id: string;
-    qrToken: string;
-    purpose: string;
-    expectedFrom: string;
-    expectedTo: string;
+    qrToken?: string;
+    visitStart: string;
+    visitEnd: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    singleEntry?: boolean;
+    entryLogs?: { entryAt: string; exitAt?: string; status: 'ENTERED' | 'EXITED' | 'DENIED' }[];
     visitors: Visitor[];
     createdAt: string;
+    unit?: { unitNumber: string };
 }
 
 export interface Visitor {
@@ -78,7 +80,9 @@ export interface RecurringStaff {
     scheduleType: 'DAILY' | 'WEEKLY' | 'MONTHLY';
     validFrom: string;
     validTo: string;
+    qrCodeId: string;
     status: 'ACTIVE' | 'DEACTIVATED';
+    createdAt?: string;
 }
 
 export interface CreateRecurringStaffRequest {
@@ -342,4 +346,110 @@ export interface PaginatedResponse<T> {
 export interface ApiSuccessResponse {
     success: boolean;
     message?: string;
+}
+
+export interface WalkInEntryRequest {
+    gateId: string;
+    notes?: string;
+}
+
+export interface SecurityVisitorEntry {
+    id: string;
+    visitorName: string;
+    unitNumber: string;
+    status: 'EXPECTED' | 'INSIDE' | 'EXITED' | 'DENIED';
+    type: 'GUEST' | 'DELIVERY' | 'CAB' | 'SERVICE';
+    entryTime?: string;
+    exitTime?: string;
+    vehicleNumber?: string;
+    mobileNumber?: string;
+    photoUrl?: string;
+    gateId?: string;
+    qrCode?: string;
+    approvalType?: 'Pre-approved' | 'Sudden';
+    deniedReason?: string;
+}
+
+
+// --- Security ---
+export interface SecurityLoginRequest {
+    username: string;
+    password: string;
+    deviceId: string;
+}
+
+export interface SecurityRefreshRequest {
+    refreshToken: string;
+}
+
+export interface SecurityAuthResponse {
+    accessToken: string;
+    refreshToken: string;
+    guard: {
+        id: string;
+        fullName: string;
+        username: string;
+        role: string;
+        status: string;
+        communityId: string;
+    };
+    shift: {
+        id: string;
+        gateId: string;
+        startAt: string;
+        endAt?: string;
+    };
+    gate: {
+        id: string;
+        name: string;
+        status: string;
+    };
+}
+
+export interface SecurityDashboardStats {
+    totalEntries: number;
+    activeVisitors: number;
+    staffInside: number;
+    vehiclesInside: number;
+    pendingApprovals: number;
+    pendingDeliveries: number;
+}
+
+export interface ScanVisitorRequest {
+    qrToken: string;
+    gateId?: string;
+}
+
+export interface CreateWalkInRequest {
+    visitorName: string;
+    unitNumber: string;
+    mobileNumber?: string;
+    photoUrl?: string;
+    purpose?: string;
+    vehicleNumber?: string;
+
+}
+
+export interface SOSLogItem {
+    id: string;
+    residentName: string;
+    unitId: string;
+    location: string;
+    time: string;
+    status: string;
+    message?: string;
+    resolvedBy?: string;
+    resolvedAt?: string;
+}
+
+export interface SecurityVehicleLog {
+    id: string;
+    vehicleNumber: string;
+    type: string;
+    ownerName: string;
+    unitId: string;
+    status: string;
+    entryTime: string;
+    exitTime?: string;
+    date: string;
 }

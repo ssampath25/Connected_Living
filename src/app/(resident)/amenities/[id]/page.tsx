@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 // Import API
 import { api, getIconForType, AmenityItem } from "@/lib/api"
+import { AmenitySlot } from "@/lib/api-types"
 
 export default function AmenityBookingPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter()
@@ -15,22 +16,40 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [selectedSlots, setSelectedSlots] = useState<string[]>([])
     const [booking, setBooking] = useState(false)
+    const [allSlots, setAllSlots] = useState<AmenitySlot[]>([])
     const dateInputRef = useRef<HTMLInputElement>(null)
 
-    const slots = ["06:00 AM", "07:00 AM", "08:00 AM", "05:00 PM", "06:00 PM", "07:00 PM"]
-
     useEffect(() => {
-        api.getAmenityById(id).then((data) => {
-            setAmenity(data || null)
+        Promise.all([
+            api.getAmenityById(id),
+            api.getAmenitySlots(id)
+        ]).then(([amenityData, slotsData]) => {
+            setAmenity(amenityData || null)
+            setAllSlots(slotsData || [])
             setLoading(false)
         })
     }, [id])
 
-    const toggleSlot = (slot: string) => {
-        if (selectedSlots.includes(slot)) {
-            setSelectedSlots(prev => prev.filter(s => s !== slot))
+    // Filter slots for selected date
+    const slots = allSlots.filter(slot => {
+        if (!date) return false
+
+        // Debug filtering
+        const slotDate = new Date(slot.startTime).toLocaleDateString('en-CA') // YYYY-MM-DD in local time
+        const utcDate = new Date(slot.startTime).toISOString().split('T')[0]
+        console.log(`Slot: ${slot.startTime} | Local: ${slotDate} | UTC: ${utcDate} | Selected: ${date}`)
+
+        return slotDate === date
+    }).map(slot => ({
+        id: slot.id,
+        label: new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }))
+
+    const toggleSlot = (slotId: string) => {
+        if (selectedSlots.includes(slotId)) {
+            setSelectedSlots(prev => prev.filter(s => s !== slotId))
         } else {
-            setSelectedSlots(prev => [...prev, slot])
+            setSelectedSlots(prev => [...prev, slotId])
         }
     }
 
@@ -45,10 +64,12 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
         }
 
         setBooking(true)
+        // Pass selectedSlots (which are now IDs) directly
         await api.bookAmenity(id, date, selectedSlots)
         setBooking(false)
         router.push("/amenities/my-bookings")
     }
+
 
     if (loading) return <div className="p-8 text-center">Loading...</div>
     if (!amenity) return <div className="p-8 text-center">Amenity not found</div>
@@ -148,12 +169,13 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Available Slots</label>
                                 <div className="grid grid-cols-3 gap-2">
+                                    {slots.length === 0 && <p className="col-span-3 text-sm text-gray-500 italic">No slots for this date</p>}
                                     {slots.map((slot) => {
-                                        const isSelected = selectedSlots.includes(slot)
+                                        const isSelected = selectedSlots.includes(slot.id)
                                         return (
                                             <button
-                                                key={slot}
-                                                onClick={() => toggleSlot(slot)}
+                                                key={slot.id}
+                                                onClick={() => toggleSlot(slot.id)}
                                                 className={cn(
                                                     "py-2 px-1 text-xs font-bold rounded-lg border transition-all",
                                                     isSelected
@@ -161,7 +183,7 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
                                                         : "bg-accent/30 text-muted-foreground border-border hover:border-primary/30"
                                                 )}
                                             >
-                                                {slot}
+                                                {slot.label}
                                                 {isSelected && <span className="ml-1 text-[10px] opacity-70">✓</span>}
                                             </button>
                                         )
