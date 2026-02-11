@@ -25,32 +25,55 @@ export default function SecurityLogsPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const visitors = await api.getVisitors()
-                // Transform visitors to log entries
-                const logEntries: LogEntry[] = visitors.flatMap((v: VisitorItem, idx: number) => {
-                    const entries: LogEntry[] = []
-                    entries.push({
-                        id: `${v.id}-entry`,
-                        visitorName: v.name,
-                        type: "entry",
-                        unitId: v.unitId,
-                        time: v.time || "N/A",
-                        gate: "Gate 1",
-                        verifiedBy: "Security Guard"
-                    })
-                    if (v.status === "Left") {
-                        entries.push({
-                            id: `${v.id}-exit`,
-                            visitorName: v.name,
-                            type: "exit",
-                            unitId: v.unitId,
-                            time: "Later",
-                            gate: "Gate 1",
-                            verifiedBy: "Security Guard"
+                const history = await api.security.getVisitorHistory()
+                // Transform to LogEntry
+                // SecurityVisitorEntry has status INSIDE, EXITED, etc.
+                // We want a log of events. 
+                // getVisitorHistory returns a list of entries.
+                // If status is EXITED, it means they entered AND exited.
+                // If INSIDE, they entered.
+                // We should probably show one entry per event (entry or exit).
+                // Or one row per visitor session with entry/exit times?
+                // The current UI shows separate rows for entry and exit if formatted that way.
+
+                const logEntries: LogEntry[] = []
+                history.forEach(h => {
+                    // Entry event
+                    if (h.entryTime) {
+                        logEntries.push({
+                            id: `${h.id}-entry`,
+                            visitorName: h.visitorName,
+                            type: "entry",
+                            unitId: h.unitNumber,
+                            time: new Date(h.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            gate: h.gateId || "Gate 1",
+                            verifiedBy: "Security"
                         })
                     }
-                    return entries
+
+                    // Exit event
+                    if (h.exitTime) {
+                        logEntries.push({
+                            id: `${h.id}-exit`,
+                            visitorName: h.visitorName,
+                            type: "exit",
+                            unitId: h.unitNumber,
+                            time: new Date(h.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            gate: h.gateId || "Gate 1",
+                            verifiedBy: "Security"
+                        })
+                    }
                 })
+
+                // Sort by time descending (newest first)
+                // We need date to sort correctly if times are just strings. 
+                // But simplified: reverse order of history if history is sorted?
+                // History from backend is usually sorted by entry time desc.
+                // So this should be roughly correct, but exit might be later.
+                // Let's sort based on time string? No, that's bad.
+                // Ideally backend returns logs.
+                // For now, reverse is okay if backend returns newest first.
+
                 setLogs(logEntries)
             } catch (error) {
                 console.error("Failed to fetch logs", error)

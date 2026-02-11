@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ScanLine, CheckCircle, XCircle, Search, User, Loader2, QrCode, Smartphone, Camera, RefreshCcw, ArrowLeft } from "lucide-react"
-import { api, VisitorItem } from "@/lib/api"
+import { api, SecurityVisitorEntry } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 export default function SecurityScannerPage() {
     const [code, setCode] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [scannedVisitor, setScannedVisitor] = useState<VisitorItem | null>(null)
+    const [scannedVisitor, setScannedVisitor] = useState<SecurityVisitorEntry | null>(null)
     const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle")
     const [errorMessage, setErrorMessage] = useState("")
     const [isCameraActive, setIsCameraActive] = useState(true)
@@ -27,44 +27,21 @@ export default function SecurityScannerPage() {
         setIsLoading(true)
 
         try {
-            const visitors = await api.getVisitors()
-            const visitor = visitors.find(v => v.code === data)
+            const visitor = await api.security.scanVisitor({ qrToken: data })
 
-            if (!visitor) {
-                setScanStatus("error")
-                setErrorMessage("Invalid Code. Visitor not found.")
-                toast.error("Invalid QR Code")
-                setTimeout(() => setScanStatus("idle"), 3000)
-                setIsLoading(false)
-                return
-            }
+            setScannedVisitor(visitor)
+            setScanStatus("success")
 
-            if (visitor.status === "Expected") {
-                await api.checkInVisitor(visitor.id)
-                setScannedVisitor({ ...visitor, status: "Inside" })
-                setScanStatus("success")
-                toast.success(`Welcome ${visitor.name}`, { description: `Unit ${visitor.unitId} - Checked In` })
-            } else if (visitor.status === "Inside") {
-                await api.checkOutVisitor(visitor.id)
-                setScannedVisitor({ ...visitor, status: "Left" })
-                setScanStatus("success")
-                toast.success(`Goodbye ${visitor.name}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
-            } else if (visitor.status === "Left") {
-                setScanStatus("error")
-                setErrorMessage("Visitor already left.")
-                toast.warning("Already Checked Out")
-                setTimeout(() => setScanStatus("idle"), 3000)
+            if (visitor.status === 'INSIDE') {
+                toast.success(`Welcome ${visitor.visitorName}`, { description: `Unit ${visitor.unitNumber} - Checked In` })
             } else {
-                setScanStatus("error")
-                setErrorMessage(`Status: ${visitor.status}. Cannot process.`)
-                toast.error(`Status: ${visitor.status}`)
-                setTimeout(() => setScanStatus("idle"), 3000)
+                toast.success(`Goodbye ${visitor.visitorName}`, { description: `Checked Out at ${new Date().toLocaleTimeString()}` })
             }
 
         } catch (error) {
             console.error(error)
             setScanStatus("error")
-            setErrorMessage("Failed to process code.")
+            setErrorMessage("Invalid Code or Scan Failed")
             toast.error("Scan Failed")
             setTimeout(() => setScanStatus("idle"), 3000)
         } finally {
@@ -179,14 +156,14 @@ export default function SecurityScannerPage() {
 
                             {scanStatus === "success" && scannedVisitor && (
                                 <>
-                                    <h2 className="text-xl font-bold">{scannedVisitor.status === "Inside" ? "Access Granted" : "Checked Out"}</h2>
+                                    <h2 className="text-xl font-bold">{scannedVisitor.status === "INSIDE" ? "Access Granted" : "Checked Out"}</h2>
                                     <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
                                         <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Visitor</p>
-                                        <p className="text-lg font-semibold">{scannedVisitor.name}</p>
+                                        <p className="text-lg font-semibold">{scannedVisitor.visitorName}</p>
                                         <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
                                             <div className="text-left">
                                                 <p className="text-xs text-muted-foreground">Unit</p>
-                                                <p className="font-mono">{scannedVisitor.unitId}</p>
+                                                <p className="font-mono">{scannedVisitor.unitNumber}</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-xs text-muted-foreground">Type</p>

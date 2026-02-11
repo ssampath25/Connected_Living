@@ -4,15 +4,21 @@ import { useEffect, useState, useRef } from "react"
 import { Calendar, Filter, ArrowUpDown, Search, User, Car, Package, Truck, Clock, MapPin, Phone, Shield, ArrowLeft, ScanLine, QrCode } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { api, VisitorItem } from "@/lib/api"
+import { api, SecurityVisitorEntry } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
+// Extended interface for UI logic
+interface PageVisitorItem extends SecurityVisitorEntry {
+    date: string
+    time: string
+}
+
 export default function SecurityVisitorsPage() {
     const [loading, setLoading] = useState(true)
-    const [visitors, setVisitors] = useState<VisitorItem[]>([])
+    const [visitors, setVisitors] = useState<PageVisitorItem[]>([])
 
     // State
     const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
@@ -43,10 +49,29 @@ export default function SecurityVisitorsPage() {
 
     const fetchVisitors = async () => {
         try {
-            const data = await api.getVisitors()
-            setVisitors(data)
+            const [expected, inside, history] = await Promise.all([
+                api.security.getExpectedVisitors(),
+                api.security.getInsideVisitors(),
+                api.security.getVisitorHistory()
+            ])
+
+            const transform = (entry: SecurityVisitorEntry): PageVisitorItem => {
+                const relevantDate = entry.entryTime || entry.startTime || new Date().toISOString()
+                const date = relevantDate.split('T')[0]
+                const time = new Date(relevantDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                return { ...entry, date, time }
+            }
+
+            const allVisitors = [
+                ...expected.map(transform),
+                ...inside.map(transform),
+                ...history.map(transform)
+            ]
+
+            setVisitors(allVisitors)
         } catch (error) {
             console.error("Failed to fetch visitors", error)
+            toast.error("Failed to load visitors")
         }
     }
 
@@ -59,20 +84,24 @@ export default function SecurityVisitorsPage() {
         load()
 
         // Poll for updates
-        const interval = setInterval(fetchVisitors, 5000)
+        const interval = setInterval(fetchVisitors, 10000) // 10s polling
         return () => clearInterval(interval)
     }, [])
 
 
     // Filter Logic
-    const dateVisitors = visitors.filter(v => v.date === selectedDate)
+    // Note: History filter by date might strictly filter by exit date or entry date. 
+    // Here using 'date' derived from entryTime/startTime.
+    const dateVisitors = visitors.filter(v => v.date === selectedDate || v.status === 'INSIDE')
+    // Note: Showing ALL inside visitors regardless of date? Ideally yes.
+    // If filtering by date strictly: const dateVisitors = visitors.filter(v => v.date === selectedDate)
 
-    const insideVisitors = dateVisitors.filter(v => v.status === "Inside")
-    const expectedVisitors = dateVisitors.filter(v => v.status === "Expected")
-    const historyVisitors = dateVisitors.filter(v => v.status === "Left")
+    const insideVisitors = visitors.filter(v => v.status === "INSIDE") // Inside are always current
+    const expectedVisitors = visitors.filter(v => v.status === "EXPECTED" && v.date === selectedDate)
+    const historyVisitors = visitors.filter(v => (v.status === "EXITED" || v.status === "DENIED") && v.date === selectedDate)
 
     // Determine List based on Tab
-    let currentList = []
+    let currentList: PageVisitorItem[] = []
     if (activeTab === "inside") {
         currentList = insideVisitors
         if (filterType !== "all") {
@@ -89,14 +118,14 @@ export default function SecurityVisitorsPage() {
 
     // Category Filter
     if (categoryFilter !== "All") {
-        currentList = currentList.filter(v => v.type === categoryFilter)
+        currentList = currentList.filter(v => v.type === categoryFilter.toUpperCase() as any)
     }
 
     // Search Filter
     if (searchQuery) {
         currentList = currentList.filter(v =>
-            v.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            v.unitId.toLowerCase().includes(searchQuery.toLowerCase())
+            v.visitorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            v.unitNumber.toLowerCase().includes(searchQuery.toLowerCase())
         )
     }
 
@@ -109,8 +138,8 @@ export default function SecurityVisitorsPage() {
 
     // Stats
     const stats = {
-        attended: dateVisitors.filter(v => v.status === "Inside" || v.status === "Left").length,
-        currentlyInside: dateVisitors.filter(v => v.status === "Inside").length
+        attended: historyVisitors.length,
+        currentlyInside: insideVisitors.length
     }
 
     const formatDateDisplay = (dateStr: string) => {
@@ -383,25 +412,25 @@ export default function SecurityVisitorsPage() {
                                     {/* Icon/Avatar */}
                                     <div className={cn(
                                         "h-12 w-12 rounded-full flex items-center justify-center shrink-0",
-                                        visitor.type === "Guest" ? "bg-blue-100 text-blue-600" :
-                                            visitor.type === "Delivery" ? "bg-orange-100 text-orange-600" :
-                                                visitor.type === "Cab" ? "bg-yellow-100 text-yellow-600" : "bg-gray-100 text-gray-600"
+                                        visitor.type === "GUEST" ? "bg-blue-100 text-blue-600" :
+                                            visitor.type === "DELIVERY" ? "bg-orange-100 text-orange-600" :
+                                                visitor.type === "CAB" ? "bg-yellow-100 text-yellow-600" : "bg-gray-100 text-gray-600"
                                     )}>
-                                        {visitor.type === "Guest" && <User size={20} />}
-                                        {visitor.type === "Delivery" && <Package size={20} />}
-                                        {visitor.type === "Cab" && <Car size={20} />}
-                                        {visitor.type === "Service" && <Truck size={20} />}
+                                        {visitor.type === "GUEST" && <User size={20} />}
+                                        {visitor.type === "DELIVERY" && <Package size={20} />}
+                                        {visitor.type === "CAB" && <Car size={20} />}
+                                        {visitor.type === "SERVICE" && <Truck size={20} />}
                                     </div>
 
                                     {/* Details */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between items-start">
-                                            <h4 className="font-semibold text-foreground truncate">{visitor.name}</h4>
+                                            <h4 className="font-semibold text-foreground truncate">{visitor.visitorName}</h4>
                                             <span className={cn(
                                                 "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
-                                                visitor.status === "Inside" ? "bg-green-100 text-green-700" :
-                                                    visitor.status === "Expected" ? "bg-blue-100 text-blue-700" :
-                                                        visitor.status === "Left" ? "bg-gray-100 text-gray-600" : "bg-red-100 text-red-600"
+                                                visitor.status === "INSIDE" ? "bg-green-100 text-green-700" :
+                                                    visitor.status === "EXPECTED" ? "bg-blue-100 text-blue-700" :
+                                                        visitor.status === "EXITED" ? "bg-gray-100 text-gray-600" : "bg-red-100 text-red-600"
                                             )}>
                                                 {visitor.status}
                                             </span>
@@ -409,7 +438,7 @@ export default function SecurityVisitorsPage() {
 
                                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                             <span className="flex items-center gap-1">
-                                                <MapPin size={12} /> Unit {visitor.unitId}
+                                                <MapPin size={12} /> Unit {visitor.unitNumber}
                                             </span>
                                             <span className="flex items-center gap-1">
                                                 <Clock size={12} /> {visitor.time}
@@ -421,11 +450,11 @@ export default function SecurityVisitorsPage() {
                                                 "text-[10px] px-1.5 py-0.5 rounded border",
                                                 visitor.approvalType === "Pre-approved" ? "border-green-200 text-green-700 bg-green-50" : "border-amber-200 text-amber-700 bg-amber-50"
                                             )}>
-                                                {visitor.approvalType}
+                                                {visitor.approvalType || "Sudden"}
                                             </span>
-                                            {visitor.code && (
+                                            {visitor.qrCode && (
                                                 <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                                                    Code: {visitor.code}
+                                                    Code: {visitor.qrCode}
                                                 </span>
                                             )}
                                         </div>

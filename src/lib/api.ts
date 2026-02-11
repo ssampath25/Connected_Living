@@ -35,6 +35,15 @@ import type {
     PaymentIntentResponse,
     CommunityEvent,
     CreateEventRequest,
+    SecurityLoginRequest,
+    SecurityRefreshRequest,
+    SecurityAuthResponse,
+    SecurityDashboardStats,
+    ScanVisitorRequest,
+    CreateWalkInRequest,
+    WalkInEntryRequest,
+    SecurityVisitorEntry,
+    SOSLogItem,
 } from "./api-types"
 
 // Re-export types for backward compatibility
@@ -1281,6 +1290,209 @@ export const api = {
     verifyVisitorCode: async (code: string): Promise<VisitorItem | undefined> => {
         const visitors = await api.getVisitors()
         return visitors.find(v => v.code === code)
+    },
+
+    // ==========================================
+    // SECURITY MODULE (New)
+    // ==========================================
+
+    security: {
+        login: async (credentials: SecurityLoginRequest): Promise<SecurityAuthResponse> => {
+            const response = await httpClient.post<SecurityAuthResponse>("/security/auth/login", credentials, { skipAuth: true })
+            tokenManager.setTokens(response.accessToken, response.refreshToken)
+            return response
+        },
+
+        logout: async (): Promise<void> => {
+            try {
+                await httpClient.post("/security/auth/logout", {})
+            } finally {
+                tokenManager.clearTokens()
+            }
+        },
+
+
+        getDashboardStats: async (): Promise<SecurityDashboardStats> => {
+            return httpClient.get<SecurityDashboardStats>("/security/dashboard")
+        },
+
+        getExpectedVisitors: async (): Promise<SecurityVisitorEntry[]> => {
+            try {
+                const groups = await httpClient.get<any[]>("/security/visitors/expected")
+                return groups.flatMap(g => g.visitors.map((v: any) => ({
+                    id: g.id,
+                    visitorName: v.name,
+                    unitNumber: g.unit?.unitNumber || "",
+                    status: 'EXPECTED',
+                    type: g.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST', // Simplified mapping
+                    mobileNumber: v.mobileNumber,
+                    vehicleNumber: v.vehicleNumber,
+                    startTime: g.visitStart,
+                    endTime: g.visitEnd,
+                    approvalType: 'Pre-approved',
+                } as SecurityVisitorEntry)))
+            } catch {
+                return []
+            }
+        },
+
+        getInsideVisitors: async (): Promise<SecurityVisitorEntry[]> => {
+            try {
+                const logs = await httpClient.get<any[]>("/security/visitors/inside")
+                return logs.map(log => ({
+                    id: log.id,
+                    visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                    unitNumber: log.group?.unit?.unitNumber || "",
+                    status: 'INSIDE',
+                    type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                    entryTime: log.entryAt,
+                    mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                    photoUrl: log.photoUrl,
+                    gateId: log.gateId,
+                    approvalType: log.scanMethod === 'QR' ? 'Pre-approved' : 'Sudden',
+                } as SecurityVisitorEntry))
+            } catch {
+                return []
+            }
+        },
+
+        getVisitorHistory: async (): Promise<SecurityVisitorEntry[]> => {
+            try {
+                const logs = await httpClient.get<any[]>("/security/visitors/history")
+                return logs.map(log => ({
+                    id: log.id,
+                    visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                    unitNumber: log.group?.unit?.unitNumber || "",
+                    status: log.status,
+                    type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                    entryTime: log.entryAt,
+                    exitTime: log.exitAt,
+                    mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                    photoUrl: log.photoUrl,
+                    approvalType: log.scanMethod === 'QR' ? 'Pre-approved' : 'Sudden',
+                } as SecurityVisitorEntry))
+            } catch {
+                return []
+            }
+        },
+
+        scanVisitor: async (data: ScanVisitorRequest): Promise<SecurityVisitorEntry> => {
+            const response = await httpClient.post<any>("/security/visitors/scan", data)
+            const log = response.log;
+            return {
+                id: log.id,
+                visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                unitNumber: log.group?.unit?.unitNumber || "",
+                status: response.status === 'ENTERED' ? 'INSIDE' : 'EXITED',
+                type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                entryTime: log.entryAt,
+                exitTime: log.exitAt,
+                mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                photoUrl: log.photoUrl,
+                gateId: log.gateId,
+                approvalType: 'Pre-approved', // specific to QR scan
+                qrCode: data.qrToken
+            } as SecurityVisitorEntry
+        },
+
+        createWalkIn: async (data: CreateWalkInRequest): Promise<{ requestId: string }> => {
+            return httpClient.post<{ requestId: string }>("/security/visitors/walkin", data)
+        },
+
+        getPendingWalkIns: async (): Promise<any[]> => {
+            return httpClient.get<any[]>("/security/visitors/walkin/pending")
+        },
+
+        approveWalkInEntry: async (requestId: string, data: WalkInEntryRequest): Promise<SecurityVisitorEntry> => {
+            return httpClient.post<SecurityVisitorEntry>(`/security/visitors/walkin/${requestId}/entry`, data)
+        },
+
+        checkoutVisitor: async (logId: string): Promise<boolean> => {
+            try {
+                await httpClient.post(`/security/visitors/${logId}/checkout`, {})
+                return true
+            } catch {
+                return false
+            }
+        },
+
+        // Vehicles
+        getInsideVehicles: async (): Promise<VehicleEntryItem[]> => {
+            try {
+                const logs = await httpClient.get<any[]>("/security/vehicles/inside")
+                return logs.map(log => ({
+                    id: log.id,
+                    vehicleNumber: log.vehicleNumber,
+                    type: "Car", // Defaulting as backend might not store type in log or vehicle
+                    ownerName: "Unknown", // Backend log might not have owner name directly, might need to fetch or include in query
+                    unitId: log.unit?.unitNumber || "Unknown",
+                    status: "Inside",
+                    entryTime: log.entryAt,
+                    date: new Date(log.entryAt).toISOString().split('T')[0]
+                }))
+            } catch {
+                return []
+            }
+        },
+
+        getVehicleHistory: async (date: string): Promise<VehicleEntryItem[]> => {
+            try {
+                const logs = await httpClient.get<any[]>(`/security/vehicles/history?date=${date}`)
+                return logs.map(log => ({
+                    id: log.id,
+                    vehicleNumber: log.vehicleNumber,
+                    type: "Car",
+                    ownerName: "Unknown",
+                    unitId: log.unit?.unitNumber || "Unknown",
+                    status: log.direction === 'IN' && !log.exitAt ? 'Inside' : 'Exited',
+                    entryTime: log.entryAt,
+                    exitTime: log.exitAt,
+                    date: new Date(log.createdAt).toISOString().split('T')[0]
+                }))
+            } catch {
+                return []
+            }
+        },
+
+        logVehicleEntry: async (data: any): Promise<void> => {
+            await httpClient.post("/security/vehicles/entry", {
+                vehicleNumber: data.vehicleNumber,
+                gateId: "gate1", // Hardcoded for now
+                unitNumber: data.unitId, // Mapping unitId input (which is number like A-101) to unitNumber
+                source: "MANUAL"
+            })
+        },
+
+        logVehicleExit: async (data: any): Promise<void> => {
+            await httpClient.post("/security/vehicles/exit", {
+                vehicleNumber: data.vehicleNumber,
+                gateId: "gate1",
+                unitNumber: data.unitId, // optional for exit? logic uses it to resolve unit?
+                source: "MANUAL"
+            })
+        },
+
+        // Emergency
+        createEmergencyAlert: async (message: string): Promise<SOSLogItem> => {
+            return httpClient.post<SOSLogItem>("/security/emergency-alerts", { message })
+        },
+
+        getEmergencyAlerts: async (): Promise<SOSLogItem[]> => {
+            try {
+                const alerts = await httpClient.get<any[]>("/security/emergency-alerts")
+                return alerts.map(alert => ({
+                    id: alert.id,
+                    residentName: "Resident", // Backend doesn't link to resident directly yet? Or via unit?
+                    unitId: "Unknown",
+                    location: "Community",
+                    time: new Date(alert.createdAt).toLocaleTimeString(),
+                    status: "Active", // Assuming all in list are alerts. Status management needed on backend.
+                    message: alert.message
+                }))
+            } catch {
+                return []
+            }
+        },
     },
 }
 

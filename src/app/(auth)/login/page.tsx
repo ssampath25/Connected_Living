@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Lock, User as UserIcon, Building2, ChevronRight } from "lucide-react"
+import { Eye, EyeOff, Lock, User as UserIcon, Building2, ChevronRight, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api } from "@/lib/api"
@@ -16,6 +16,8 @@ export default function LoginPage() {
     const router = useRouter()
     const [isLoading, setIsLoading] = React.useState(false)
     const [showSplash, setShowSplash] = React.useState(true)
+    const [isSecurity, setIsSecurity] = React.useState(false) // New state
+    const [deviceId, setDeviceId] = React.useState("device-1") // Default device ID
 
     React.useEffect(() => {
         const timer = setTimeout(() => setShowSplash(false), 2000)
@@ -28,9 +30,16 @@ export default function LoginPage() {
         setIsLoading(true)
 
         try {
-            const response = await api.login(username, password)
-            if (response.accessToken) {
-                router.push("/dashboard")
+            if (isSecurity) {
+                const response = await api.security.login({ username, password, deviceId })
+                if (response.accessToken) {
+                    router.push("/security-visitors") // Redirect to security dashboard
+                }
+            } else {
+                const response = await api.login(username, password)
+                if (response.accessToken) {
+                    router.push("/dashboard")
+                }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Invalid username or password")
@@ -96,6 +105,26 @@ export default function LoginPage() {
                         </div>
                     )}
 
+                    {/* Security Toggle */}
+                    <div className="flex bg-muted p-1 rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => setIsSecurity(false)}
+                            className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${!isSecurity ? 'bg-white shadow text-primary' : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            Resident
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsSecurity(true)}
+                            className={`flex-1 py-2 text-xs font-bold uppercase rounded-lg transition-all ${isSecurity ? 'bg-white shadow text-primary' : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            Security
+                        </button>
+                    </div>
+
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-foreground/70 ml-1 uppercase tracking-wider">Username</label>
@@ -106,7 +135,7 @@ export default function LoginPage() {
                                 <Input
                                     type="text"
                                     className="pl-11 h-14 bg-muted border-border focus:bg-card focus:border-primary/20 focus:ring-4 focus:ring-primary/10 rounded-2xl text-base transition-all font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal"
-                                    placeholder="e.g. resident_101"
+                                    placeholder={isSecurity ? "e.g. guard1" : "e.g. resident_101"}
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
                                 />
@@ -134,12 +163,34 @@ export default function LoginPage() {
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                                 </button>
                             </div>
-                            <div className="flex justify-end pt-1">
-                                <Link href="/forgot-password" className="text-xs font-bold text-primary hover:underline">
-                                    Forgot Password?
-                                </Link>
-                            </div>
+
+                            {!isSecurity && (
+                                <div className="flex justify-end pt-1">
+                                    <Link href="/forgot-password" className="text-xs font-bold text-primary hover:underline">
+                                        Forgot Password?
+                                    </Link>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Device ID for Security */}
+                        {isSecurity && (
+                            <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2">
+                                <label className="text-xs font-bold text-foreground/70 ml-1 uppercase tracking-wider">Device ID</label>
+                                <div className="relative group transition-all focus-within:scale-[1.01]">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                        <Shield className="h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                                    </div>
+                                    <Input
+                                        type="text"
+                                        className="pl-11 h-14 bg-muted border-border focus:bg-card focus:border-primary/20 focus:ring-4 focus:ring-primary/10 rounded-2xl text-base transition-all font-medium text-foreground placeholder:text-muted-foreground placeholder:font-normal"
+                                        placeholder="e.g. device-1"
+                                        value={deviceId}
+                                        onChange={(e) => setDeviceId(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <Button
@@ -162,7 +213,7 @@ export default function LoginPage() {
 
                 <div className="mt-8 pt-6 border-t border-border text-center">
                     <p className="text-sm text-muted-foreground font-medium italic">
-                        Contact your society admin for login credentials.
+                        {isSecurity ? "Authorized Personnel Only" : "Contact your society admin for login credentials."}
                     </p>
                 </div>
             </div>
