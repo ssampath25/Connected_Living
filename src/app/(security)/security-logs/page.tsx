@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ClipboardList, Search, ChevronLeft, ArrowDownRight, ArrowUpRight, Filter } from "lucide-react"
+import { ClipboardList, ChevronLeft, ArrowDownRight, ArrowUpRight } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
-import { api, VisitorItem } from "@/lib/api"
+import { api } from "@/lib/api"
 
 interface LogEntry {
     id: string

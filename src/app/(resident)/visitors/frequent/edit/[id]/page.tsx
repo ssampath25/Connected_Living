@@ -1,8 +1,10 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Save, User, Calendar, Clock, IdCard, Trash2, CalendarCheck, Pencil, Camera, CreditCard } from "lucide-react"
+import { ArrowLeft, Save, Calendar, Clock, Trash2, CalendarCheck, Pencil, Camera, CreditCard } from "lucide-react"
 import { useRef } from "react"
 import { api, FrequentVisitorItem, AttendanceItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"

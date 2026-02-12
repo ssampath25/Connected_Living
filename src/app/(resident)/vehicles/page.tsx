@@ -11,8 +11,7 @@ import {
     Zap,
     Fuel,
     Loader2,
-    X,
-    Filter
+    X
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { api, VehicleItem } from "@/lib/api"

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Plus, Calendar, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Clock3 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { getMyEvents } from "@/lib/api"
 import type { CommunityEvent } from "@/lib/api-types"
 
@@ -100,7 +99,7 @@ export default function MyHostedEventsPage() {
                             <Calendar className="text-muted-foreground h-10 w-10 opacity-50" />
                         </div>
                         <h3 className="text-foreground font-bold mb-1">No Events Yet</h3>
-                        <p className="text-muted-foreground text-sm mb-6 max-w-xs">You haven't hosted any events or submitted any requests yet.</p>
+                        <p className="text-muted-foreground text-sm mb-6 max-w-xs">You haven&apos;t hosted any events or submitted any requests yet.</p>
                         <button
                             onClick={() => router.push("/community/events/create")}
                             className="text-primary font-bold text-sm bg-primary/10 px-6 py-3 rounded-xl hover:bg-primary/20 transition-colors"

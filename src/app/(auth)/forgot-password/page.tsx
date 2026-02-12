@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ChevronLeft, Mail, Phone, Lock, ArrowRight, CheckCircle2, ShieldCheck, KeyRound } from "lucide-react"
+import { ChevronLeft, Mail, Phone, Lock, CheckCircle2, ShieldCheck, KeyRound } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function ForgotPasswordPage() {
@@ -98,7 +98,7 @@ export default function ForgotPasswordPage() {
                 {/* Back Button (Only visible in early steps) */}
                 {step < 4 && (
                     <button
-                        onClick={() => step === 1 ? router.back() : setStep(prev => (prev - 1) as any)}
+                        onClick={() => step === 1 ? router.back() : setStep(prev => (prev - 1) as 1 | 2 | 3 | 4)}
                         className="absolute top-6 left-6 p-2 rounded-full hover:bg-accent text-muted-foreground transition-colors"
                     >
                         <ChevronLeft size={24} />

@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useRef, useState, useEffect } from "react"
 import { QRCodeSVG } from "qrcode.react"
 import { Download, Share2, X } from "lucide-react"
@@ -40,6 +42,7 @@ export function StaffIdCard({
 
         // Already a data URL — use directly
         if (photoUrl.startsWith("data:")) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setResolvedPhoto(photoUrl)
             return
         }
@@ -54,12 +57,15 @@ export function StaffIdCard({
                 canvas.height = img.naturalHeight
                 const ctx = canvas.getContext("2d")
                 ctx?.drawImage(img, 0, 0)
+                 
                 setResolvedPhoto(canvas.toDataURL("image/png"))
             } catch {
+                 
                 setResolvedPhoto(null)
             }
         }
         img.onerror = () => {
+             
             setResolvedPhoto(null)
         }
         img.src = photoUrl

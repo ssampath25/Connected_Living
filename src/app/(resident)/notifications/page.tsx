@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle2, Loader2, Bell, MessageSquare, Calendar, Shield, CreditCard, Tag, RefreshCw } from "lucide-react"
+import { ArrowLeft, Loader2, Bell, MessageSquare, Calendar, Shield, CreditCard, Tag } from "lucide-react"
 import { api, NotificationItem } from "@/lib/api"
 import { cn } from "@/lib/utils"
 

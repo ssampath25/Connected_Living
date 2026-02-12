@@ -2,9 +2,8 @@
 
 import { useState } from "react"
 import { useTheme } from "next-themes"
-import { Moon, Sun, Monitor, ChevronLeft, Shield, User, Clock, LogOut, ChevronRight } from "lucide-react"
+import { Moon, Sun, Monitor, ChevronLeft, Shield, Clock, LogOut, ChevronRight } from "lucide-react"
 import Link from "next/link"
-import { cn } from "@/lib/utils"
 
 export default function SecuritySettingsPage() {
     const { theme, setTheme, resolvedTheme } = useTheme()

@@ -45,9 +45,11 @@ export interface ResidentProfile {
 export interface VisitorGroup {
     id: string;
     qrToken?: string;
+    shortCode?: string;
     visitStart: string;
     visitEnd: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    type?: 'GUEST' | 'DELIVERY' | 'CAB';
     singleEntry?: boolean;
     entryLogs?: { entryAt: string; exitAt?: string; status: 'ENTERED' | 'EXITED' | 'DENIED' }[];
     visitors: Visitor[];
@@ -63,13 +65,12 @@ export interface Visitor {
 }
 
 export interface CreateVisitorGroupRequest {
-    purpose: string;
-    expectedFrom: string;
-    expectedTo: string;
-    visitors: { name: string; phone?: string; vehicleNumber?: string }[];
-    type?: string;
-    relation?: string;
-    avatar?: string;
+    unitId: string;
+    visitStart: string;
+    visitEnd: string;
+    visitors: { name: string; mobileNumber?: string }[];
+    type: 'GUEST' | 'DELIVERY' | 'CAB';
+    singleEntry?: boolean;
 }
 
 export interface RecurringStaff {
@@ -384,10 +385,86 @@ export interface SecurityStaffScanEntry {
     createdAt: string;
 }
 
+export interface SecurityVisitorGroup {
+    id: string;
+    visitStart: string;
+    visitEnd: string;
+    type?: 'DELIVERY' | 'GUEST' | 'CAB' | 'SERVICE';
+    unit?: { unitNumber?: string };
+    visitors: { id?: string; name: string; mobileNumber?: string; vehicleNumber?: string }[];
+    shortCode?: string;
+}
+
+export interface SecurityVisitorLog {
+    id: string;
+    status: 'ENTERED' | 'EXITED' | 'DENIED';
+    entryAt?: string;
+    exitAt?: string | null;
+    photoUrl?: string;
+    gateId?: string;
+    scanMethod?: 'QR' | 'MANUAL' | 'CODE' | string;
+    group?: {
+        type?: 'DELIVERY' | 'GUEST' | 'CAB' | 'SERVICE';
+        shortCode?: string;
+        unit?: { unitNumber?: string };
+        visitors?: { name: string; mobileNumber?: string }[];
+    };
+}
+
+export interface SecurityScanVisitorResponse {
+    log: SecurityVisitorLog;
+    allowed: boolean;
+    checkedOut: boolean;
+    warning?: string;
+}
+
 export type SecurityScanResponse =
-    | { type: 'VISITOR'; log: any; allowed: boolean; checkedOut: boolean }
+    | { type: 'VISITOR'; log: SecurityVisitorLog; allowed: boolean; checkedOut: boolean }
     | { type: 'STAFF'; staff: SecurityStaffScanEntry };
 
+export interface SecurityPendingWalkIn {
+    id: string;
+    name?: string;
+    unitId?: string;
+    status?: string;
+    requestedAt?: string;
+}
+
+export interface SecurityVehicleLog {
+    id: string;
+    vehicleNumber: string;
+    direction?: 'IN' | 'OUT';
+    entryAt?: string;
+    exitAt?: string;
+    unitId?: string;
+    ownerName?: string;
+    status?: string;
+    gateId?: string;
+    vehicle?: { type?: string; category?: string };
+}
+
+export interface SecurityEmergencyAlert {
+    id: string;
+    type?: string;
+    status?: string;
+    createdAt?: string;
+    message?: string;
+}
+
+export interface SecurityVehicleEntryRequest {
+    vehicleNumber: string;
+    type?: string;
+    ownerName: string;
+    unitId: string;
+    purpose?: string;
+    gateId?: string;
+}
+
+export interface SecurityVehicleExitRequest {
+    vehicleNumber: string;
+    unitId: string;
+    gateId?: string;
+}
 
 // --- Security ---
 export interface SecurityLoginRequest {

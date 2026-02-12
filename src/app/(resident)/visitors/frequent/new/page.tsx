@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Save, User, Calendar, Clock, IdCard, Phone, Camera, Repeat } from "lucide-react"
@@ -201,7 +203,7 @@ export default function NewFrequentVisitorPage() {
                                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Type</label>
                                 <select
                                     value={type}
-                                    onChange={(e) => setType(e.target.value as any)}
+                                    onChange={(e) => setType(e.target.value as "Guest" | "Delivery" | "Cab" | "Staff")}
                                     className="w-full mt-2 bg-background p-2 rounded-lg text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20 border border-border"
                                 >
                                     <option value="Staff">Staff</option>

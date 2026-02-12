@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+/* eslint-disable @next/next/no-img-element */
+
+import { useState, useEffect, type ComponentType } from "react"
 import {
     ArrowLeft,
     Edit2,
@@ -8,8 +10,6 @@ import {
     Mail,
     Home,
     Calendar,
-    Users,
-    Car,
     Receipt,
     Lock,
     Settings,
@@ -476,7 +476,7 @@ export default function ProfilePage() {
     )
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: any, label: string, value: string }) {
+function InfoRow({ icon: Icon, label, value }: { icon: ComponentType<{ size?: number; className?: string }>, label: string, value: string }) {
     return (
         <Info content={<div className="flex items-center gap-4">
             <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0"><Icon size={20} /></div>
@@ -488,4 +488,3 @@ function InfoRow({ icon: Icon, label, value }: { icon: any, label: string, value
 function Info({ content }: { content: React.ReactNode }) {
     return <div className="p-4">{content}</div>
 }
-

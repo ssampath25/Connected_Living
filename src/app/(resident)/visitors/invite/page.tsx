@@ -1,8 +1,10 @@
 "use client"
 
-import { ArrowLeft, User, Truck, Car, CheckCircle, Share2, ShieldCheck, Mail, Phone, Calendar, Clock, Camera } from "lucide-react"
+/* eslint-disable @next/next/no-img-element */
+
+import { ArrowLeft, User, Truck, Car, Share2, ShieldCheck, Mail, Phone, Calendar, Clock, Camera } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, type ComponentType, type ChangeEvent, type InputHTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
 import { api, InviteParams } from "@/lib/api"
 import { VisitorGroupCard } from "@/components/visitor-group-card"
@@ -12,7 +14,16 @@ export default function InviteVisitorPage() {
     const [visitorType, setVisitorType] = useState<"guest" | "delivery" | "cab">("guest")
     const [loading, setLoading] = useState(false)
     const [successData, setSuccessData] = useState<{ code?: string, qrToken?: string, message: string } | null>(null)
-    const [visitorGroup, setVisitorGroup] = useState<any>(null)
+    type VerifiedVisitorGroup = {
+        visitors: { name: string }[]
+        visitStart: string
+        visitEnd: string
+        hostName: string
+        unitNumber: string
+        blockTower?: string
+        communityName?: string
+    }
+    const [visitorGroup, setVisitorGroup] = useState<VerifiedVisitorGroup | null>(null)
 
     // Form States
     const [formData, setFormData] = useState({
@@ -226,9 +237,9 @@ export default function InviteVisitorPage() {
                     <div className="space-y-3">
                         <label className="text-sm font-semibold text-muted-foreground">Entry Type</label>
                         <div className="grid grid-cols-3 gap-3">
-                            <TypeCard id="guest" icon={User} label="Guest" active={visitorType === "guest"} onClick={() => setVisitorType("guest")} />
-                            <TypeCard id="delivery" icon={Truck} label="Delivery" active={visitorType === "delivery"} onClick={() => setVisitorType("delivery")} />
-                            <TypeCard id="cab" icon={Car} label="Cab" active={visitorType === "cab"} onClick={() => setVisitorType("cab")} />
+                            <TypeCard icon={User} label="Guest" active={visitorType === "guest"} onClick={() => setVisitorType("guest")} />
+                            <TypeCard icon={Truck} label="Delivery" active={visitorType === "delivery"} onClick={() => setVisitorType("delivery")} />
+                            <TypeCard icon={Car} label="Cab" active={visitorType === "cab"} onClick={() => setVisitorType("cab")} />
                         </div>
                     </div>
 
@@ -284,7 +295,7 @@ export default function InviteVisitorPage() {
                                                 <Input
                                                     label="Guest Name"
                                                     value={guest.name}
-                                                    onChange={(e: any) => handleGuestChange(index, "name", e.target.value)}
+                                                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleGuestChange(index, "name", e.target.value)}
                                                     required
                                                     placeholder="Enter guest name"
                                                 />
@@ -395,7 +406,7 @@ export default function InviteVisitorPage() {
 
 // --- Components ---
 
-function TypeCard({ id, icon: Icon, label, active, onClick }: { id: string, icon: any, label: string, active: boolean, onClick: () => void }) {
+function TypeCard({ icon: Icon, label, active, onClick }: { icon: ComponentType<{ size?: number; className?: string }>, label: string, active: boolean, onClick: () => void }) {
     return (
         <button
             type="button"
@@ -422,7 +433,16 @@ function TypeCard({ id, icon: Icon, label, active, onClick }: { id: string, icon
     )
 }
 
-function Input({ label, icon: Icon, type, value, onChange, className, ...props }: any) {
+type LabeledInputProps = {
+    label: string
+    icon?: ComponentType<{ size?: number; className?: string }>
+    type: string
+    value: string
+    onChange: (e: ChangeEvent<HTMLInputElement>) => void
+    className?: string
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange">
+
+function Input({ label, icon: Icon, type, value, onChange, className, ...props }: LabeledInputProps) {
     const dateRef = useRef<HTMLInputElement>(null)
     // Custom Date Logic
     if (type === 'date') {

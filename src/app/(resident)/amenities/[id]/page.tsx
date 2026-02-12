@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState, use, useRef } from "react"
-import { ArrowLeft, Calendar, Clock, Info, CheckCircle2, Waves, AlertTriangle } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, Info, CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 // Import API
-import { api, getIconForType, AmenityItem } from "@/lib/api"
+import { api, AmenityItem } from "@/lib/api"
 import { AmenitySlot } from "@/lib/api-types"
 
 export default function AmenityBookingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -74,8 +74,6 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
     if (loading) return <div className="p-8 text-center">Loading...</div>
     if (!amenity) return <div className="p-8 text-center">Amenity not found</div>
 
-    const Icon = getIconForType(amenity.iconType)
-
     return (
         <div className="min-h-screen bg-background pb-24 lg:pb-8 flex flex-col transition-colors">
             {/* Hero/Header */}
@@ -135,7 +133,7 @@ export default function AmenityBookingPage({ params }: { params: Promise<{ id: s
                                         <div className="space-y-1">
                                             <p className="text-xs font-bold text-orange-500">Approval Required</p>
                                             <p className="text-xs text-orange-400 leading-relaxed">
-                                                This amenity requires admin approval. Your booking status will be "Pending" until confirmed.
+                                                This amenity requires admin approval. Your booking status will be &quot;Pending&quot; until confirmed.
                                             </p>
                                         </div>
                                     </div>

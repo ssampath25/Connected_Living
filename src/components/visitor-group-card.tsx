@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
+import { useRef, useState } from "react"
 import { QRCodeSVG } from "qrcode.react"
-import { Download, Share2, X, Users, Clock, ChevronDown } from "lucide-react"
+import { Download, Share2, X, Users, ChevronDown } from "lucide-react"
 import { toPng } from "html-to-image"
 
 interface Visitor {
@@ -16,7 +16,6 @@ interface VisitorGroupCardProps {
     visitEnd: string
     hostName: string
     unitNumber: string
-    blockTower?: string
     communityName?: string
     qrToken: string // The RAW token for the QR code
     onClose?: () => void
@@ -28,7 +27,6 @@ export function VisitorGroupCard({
     visitEnd,
     hostName,
     unitNumber,
-    blockTower,
     communityName = "Triumph Residences",
     qrToken,
     onClose,

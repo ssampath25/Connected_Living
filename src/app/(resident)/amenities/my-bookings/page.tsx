@@ -1,13 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, Calendar, Clock, ArrowUpDown, CalendarClock, AlertCircle } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, ArrowUpDown, CalendarClock } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { api, BookingItem, getIconForType } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmptyState } from "@/components/empty-state"
 import Link from "next/link"
+
+function AmenityIcon({ amenityId }: { amenityId: string }) {
+    /* eslint-disable react-hooks/static-components */
+    const Icon = getIconForType(amenityId) || Calendar
+    return <Icon size={32} />
+    /* eslint-enable react-hooks/static-components */
+}
 
 export default function MyBookingsPage() {
     const router = useRouter()
@@ -82,19 +89,13 @@ export default function MyBookingsPage() {
                 ) : (
                     <div className="grid gap-4">
                         {bookings.map((booking) => {
-                            // Get icon based on amenity ID (simple mapping or need to fetch amenity details? 
-                            // The booking item has amenityId. 'pool', 'gym' etc. match icon types mostly or we can map.
-                            // api type for amenityId matches iconType often in mocks.
-                            const iconType = booking.amenityId as any
-                            const Icon = getIconForType(iconType) || Calendar
-
                             return (
                                 <Link href={`/amenities/my-bookings/${booking.id}`} key={booking.id} className="group block bg-card border border-border rounded-3xl p-5 shadow-sm hover:shadow-md hover:border-primary/20 transition-all relative">
                                     <div className="flex flex-col sm:flex-row gap-5">
                                         {/* Icon Box */}
                                         <div className="flex-shrink-0">
                                             <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                                                <Icon size={32} />
+                                                <AmenityIcon amenityId={booking.amenityId} />
                                             </div>
                                         </div>
 

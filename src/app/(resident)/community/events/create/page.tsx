@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Calendar, Clock, MapPin, AlignLeft, Image as ImageIcon, Users, Loader2 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { createCommunityEvent } from "@/lib/api"
 
 export default function CreateEventPage() {

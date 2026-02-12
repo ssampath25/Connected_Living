@@ -1,7 +1,9 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import React, { useState, useRef } from "react"
-import { ArrowLeft, Upload, Camera, Zap, Waves, Hammer, Package, MessageSquare, CheckCircle2, Mic, Users, X, AlertCircle, AlertTriangle, Calendar as CalendarIcon } from "lucide-react"
+import { ArrowLeft, Camera, Zap, Waves, Hammer, Package, MessageSquare, CheckCircle2, Mic, Users, X, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
@@ -34,7 +36,7 @@ export default function NewServiceRequestPage() {
         try {
             await api.triggerSOS()
             router.push('/dashboard')
-        } catch (error) {
+        } catch {
             console.error("Failed to trigger SOS")
         }
     }
@@ -82,8 +84,8 @@ export default function NewServiceRequestPage() {
                 priority: "MEDIUM" // Default priority
             })
             router.push('/service-requests')
-        } catch (error) {
-            console.error("Failed to create request:", error)
+        } catch {
+            console.error("Failed to create request")
         }
     }
 

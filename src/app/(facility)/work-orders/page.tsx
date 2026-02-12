@@ -1,4 +1,4 @@
-import { ClipboardList, Hammer, CheckCircle } from "lucide-react"
+import { ClipboardList, Hammer } from "lucide-react"
 
 export default function WorkOrdersPage() {
     return (

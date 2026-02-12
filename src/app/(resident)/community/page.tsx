@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { MessageSquare, Calendar, Users, Megaphone } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { api, NoticeItem } from "@/lib/api"
 
 export default function CommunityPage() {

@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+/* eslint-disable @next/next/no-img-element */
+
+import { useEffect, useState, type ComponentType } from "react"
 import { Users, Wrench, Receipt, Dumbbell, AlertTriangle, X } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 // Import API and Types
-import { api, getIconForType, ActivityItem } from "@/lib/api"
+import { api, getIconForType, ActivityItem, UserItem } from "@/lib/api"
 
 interface DashboardStats {
     activeTickets: number
@@ -19,7 +21,7 @@ export default function ResidentDashboard() {
     const [unreadCount, setUnreadCount] = useState(0)
     const [loading, setLoading] = useState(true)
     const [isSOSActive, setIsSOSActive] = useState(false)
-    const [user, setUser] = useState<any>(null)
+    const [user, setUser] = useState<UserItem | undefined>(undefined)
     const [stats, setStats] = useState<DashboardStats>({ activeTickets: 0, upcomingBookings: 0, pendingApprovals: 0 })
 
     useEffect(() => {
@@ -261,7 +263,7 @@ export default function ResidentDashboard() {
     )
 }
 
-function QuickAction({ icon: Icon, label, href }: { icon: any, label: string, href: string }) {
+function QuickAction({ icon: Icon, label, href }: { icon: ComponentType<{ size?: number; className?: string }>; label: string; href: string }) {
     return (
         <Link href={href} className="flex flex-col items-center gap-2 group">
             <div className="w-16 h-16 lg:w-24 lg:h-24 rounded-[1.25rem] lg:rounded-[1.75rem] bg-gradient-to-b from-blue-600 to-indigo-700 flex items-center justify-center shadow-md text-white transition-transform group-hover:scale-105 group-hover:shadow-lg">

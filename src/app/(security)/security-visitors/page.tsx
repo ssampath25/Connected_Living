@@ -1,12 +1,10 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { Calendar, Filter, ArrowUpDown, Search, User, Car, Package, Truck, Clock, MapPin, Phone, Shield, ArrowLeft, ScanLine, QrCode } from "lucide-react"
+import { Calendar, ArrowUpDown, Search, User, Car, Package, Truck, Clock, MapPin, ArrowLeft, QrCode } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { api, SecurityVisitorEntry } from "@/lib/api"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
@@ -43,6 +41,7 @@ export default function SecurityVisitorsPage() {
         if (statsRef.current) {
             const offsetWidth = statsRef.current.offsetWidth
             statsRef.current.scrollTo({ left: offsetWidth, behavior: 'auto' })
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveCardIndex(1)
         }
     }, [])
@@ -92,10 +91,6 @@ export default function SecurityVisitorsPage() {
     // Filter Logic
     // Note: History filter by date might strictly filter by exit date or entry date. 
     // Here using 'date' derived from entryTime/startTime.
-    const dateVisitors = visitors.filter(v => v.date === selectedDate || v.status === 'INSIDE')
-    // Note: Showing ALL inside visitors regardless of date? Ideally yes.
-    // If filtering by date strictly: const dateVisitors = visitors.filter(v => v.date === selectedDate)
-
     const insideVisitors = visitors.filter(v => v.status === "INSIDE") // Inside are always current
     const expectedVisitors = visitors.filter(v => v.status === "EXPECTED" && v.date === selectedDate)
     const historyVisitors = visitors.filter(v => (v.status === "EXITED" || v.status === "DENIED") && v.date === selectedDate)
@@ -118,7 +113,13 @@ export default function SecurityVisitorsPage() {
 
     // Category Filter
     if (categoryFilter !== "All") {
-        currentList = currentList.filter(v => v.type === categoryFilter.toUpperCase() as any)
+        const typeMap: Record<Exclude<typeof categoryFilter, "All">, SecurityVisitorEntry["type"]> = {
+            Guest: "GUEST",
+            Cab: "CAB",
+            Delivery: "DELIVERY",
+            Service: "SERVICE",
+        }
+        currentList = currentList.filter(v => v.type === typeMap[categoryFilter])
     }
 
     // Search Filter
@@ -204,9 +205,8 @@ export default function SecurityVisitorsPage() {
                                 onChange={(e) => setSelectedDate(e.target.value)}
                                 onClick={(e) => {
                                     // Explicitly show picker if supported
-                                    if ('showPicker' in e.currentTarget) {
-                                        (e.currentTarget as any).showPicker();
-                                    }
+                                    const picker = e.currentTarget as HTMLInputElement & { showPicker?: () => void }
+                                    picker.showPicker?.()
                                 }}
                             />
                         </div>
@@ -300,7 +300,7 @@ export default function SecurityVisitorsPage() {
                             onClick={() => setCategoryFilter(cat.id)}
                             className={cn(
                                 "px-4 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap",
-                                "categoryFilter" === cat.id as any /* Fix Logic */
+                                categoryFilter === cat.id
                                     ? "active-stub"
                                     : ""
                             )}

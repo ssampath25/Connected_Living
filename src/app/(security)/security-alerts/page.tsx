@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertTriangle, ChevronLeft, Bell, Shield, Clock, MapPin, CheckCircle, History } from "lucide-react"
+import { AlertTriangle, ChevronLeft, Clock, MapPin, CheckCircle, History } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"

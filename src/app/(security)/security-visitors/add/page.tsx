@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react" // Added useRef
-import { UserPlus, ChevronLeft, User, Phone, Building2, FileText, Users, Download, Share2, CheckCircle2 } from "lucide-react" // Added icons
+import { UserPlus, ChevronLeft, User, Phone, Building2, FileText, Download, CheckCircle2 } from "lucide-react" // Added icons
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -10,8 +10,15 @@ import { toast } from "sonner"
 import { toPng } from 'html-to-image'; // Import html-to-image
 import { QRCodeSVG } from 'qrcode.react'; // Import QRCode
 
+type GeneratedPassData = {
+    visitorName: string
+    type?: string
+    unitNumber?: string
+    requestId?: string
+}
+
 // --- Visitor Pass Component ---
-const VisitorPass = ({ data, onClose }: { data: any, onClose: () => void }) => {
+const VisitorPass = ({ data, onClose }: { data: GeneratedPassData, onClose: () => void }) => {
     const passRef = useRef<HTMLDivElement>(null)
 
     const handleDownload = async () => {
@@ -119,7 +126,7 @@ export default function AddVisitorPage() {
         purpose: ""
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [generatedPassData, setGeneratedPassData] = useState<any>(null) // State to show pass
+    const [generatedPassData, setGeneratedPassData] = useState<GeneratedPassData | null>(null) // State to show pass
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

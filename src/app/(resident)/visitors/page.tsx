@@ -1,7 +1,9 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect } from "react"
-import { ArrowLeft, Plus, Search, Filter, X, Ghost, User, IdCard } from "lucide-react"
+import { ArrowLeft, Plus, Search, X, Ghost, User, IdCard } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import Link from "next/link"

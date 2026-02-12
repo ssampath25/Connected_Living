@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Radio, BrainCircuit, Headset, MoreHorizontal, LogOut, Users } from "lucide-react"
+import { Home, Radio, BrainCircuit, MoreHorizontal, LogOut, Users } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useUI } from "@/components/providers/ui-provider"
 

@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useState } from "react"
 import { Users, Car, Video, UserPlus, Shield, AlertTriangle, Package, Truck } from "lucide-react"
 import Link from "next/link"
@@ -223,7 +225,7 @@ export default function SecurityGateDashboard() {
                             <div className="grid grid-cols-4 gap-3 lg:gap-4 mb-6">
                                 <div className="rounded-2xl border-2 border-green-500/20 bg-card p-3 lg:p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
                                     <p className="text-3xl lg:text-4xl font-bold text-green-600">{stats.totalVisitorsToday}</p>
-                                    <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 leading-tight">Today's Total</p>
+                                    <p className="text-[10px] lg:text-xs text-muted-foreground font-medium mt-1 leading-tight">Today&apos;s Total</p>
                                 </div>
                                 <div className="rounded-2xl border-2 border-green-500/20 bg-card p-3 lg:p-4 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md transition-shadow">
                                     <p className="text-3xl lg:text-4xl font-bold text-green-600">{stats.visitorsInside}</p>

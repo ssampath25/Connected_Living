@@ -1,14 +1,15 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
 import {
     Moon, Sun, Monitor, Users, Car, ChevronRight,
-    Bell, Shield, Phone, FileText, ChevronLeft, Settings, AlertCircle,
+    Bell, Shield, Phone, FileText, ChevronLeft, AlertCircle,
     User, Mail, MapPin, Edit2, Check, X as XIcon
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -21,7 +22,6 @@ interface UserProfile {
 }
 
 export default function MorePage() {
-    const router = useRouter()
     // View State
     const [currentView, setCurrentView] = useState<"main" | "appearance" | "profile">("main")
 
@@ -36,11 +36,11 @@ export default function MorePage() {
         unit: "",
         avatar: ""
     })
-    const [isEditing, setIsEditing] = useState(false)
     const [editedProfile, setEditedProfile] = useState<UserProfile>(profile)
 
     // Ensure component is mounted to avoid hydration mismatch
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true)
         // Fetch user data
         const loadUser = async () => {
@@ -66,7 +66,7 @@ export default function MorePage() {
             await api.triggerSOS()
             setShowSOSConfirm(false)
             // Optionally redirect or show success
-        } catch (error) {
+        } catch {
             console.error("Failed to trigger SOS")
         }
     }

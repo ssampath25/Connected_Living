@@ -1,7 +1,7 @@
 import {
     CreditCard, UserPlus, AlertTriangle, Calendar, MessageSquare, Tag, Shield, Users,
-    Truck, Car, Waves, Dumbbell, PartyPopper, Zap, Wrench, Package, Hammer, Droplets, Receipt, Flame, AlertCircle, PlugZap,
-    Megaphone, ClipboardList, Boxes, UserCheck, Radio, Home
+    Truck, Car, Waves, Dumbbell, PartyPopper, Zap, Package, Hammer, Droplets, Flame, AlertCircle, PlugZap,
+    Radio, Home
 } from "lucide-react"
 import { api as httpClient, tokenManager, ApiError } from "./api-client"
 import type {
@@ -15,34 +15,35 @@ import type {
     AmenitySlot,
     Booking,
     ServiceRequest,
-    Complaint,
     Invoice,
-    Payment,
     Announcement,
-    Poll,
-    PollResults,
     ChatGroup,
     ChatMessage,
     Notification,
     Delivery,
-    CreateVisitorGroupRequest,
     CreateRecurringStaffRequest,
     CreateVehicleRequest,
     CreateBookingRequest,
     CreateServiceRequestRequest,
     CreateDeliveryRequest,
-    PaymentIntentRequest,
     PaymentIntentResponse,
     CommunityEvent,
     CreateEventRequest,
     SecurityLoginRequest,
-    SecurityRefreshRequest,
     SecurityAuthResponse,
     SecurityDashboardStats,
     ScanVisitorRequest,
     CreateWalkInRequest,
     WalkInEntryRequest,
     SecurityVisitorEntry,
+    SecurityVisitorGroup,
+    SecurityVisitorLog,
+    SecurityScanVisitorResponse,
+    SecurityPendingWalkIn,
+    SecurityVehicleLog,
+    SecurityVehicleEntryRequest,
+    SecurityVehicleExitRequest,
+    SecurityEmergencyAlert,
     SecurityStaffScanEntry,
     SecurityScanResponse,
     SOSLogItem,
@@ -373,7 +374,7 @@ function transformBooking(booking: Booking): BookingItem {
     const bookingDate = firstSlot ? new Date(firstSlot).toLocaleDateString() : new Date(booking.createdAt).toLocaleDateString()
 
     // Extract times from slots
-    const timeSlots = booking.slots?.map((s: any) => {
+    const timeSlots = booking.slots?.map((s) => {
         const date = new Date(s.slot.startTime)
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }) || []
@@ -475,12 +476,17 @@ function transformRecurringStaff(staff: RecurringStaff): FrequentVisitorItem {
 
 function transformVisitorGroup(group: VisitorGroup): VisitorItem {
     const now = new Date()
-    const visitStart = new Date(group.visitStart)
     const visitEnd = new Date(group.visitEnd)
 
     // Determine status using latest entry log when available
     let status: VisitorItem["status"] = "Expected"
-    const latestLog = group.entryLogs?.[0]
+    const latestLog = group.entryLogs
+        ?.slice()
+        .sort((a, b) => {
+            const aTime = new Date(a.exitAt ?? a.entryAt).getTime()
+            const bTime = new Date(b.exitAt ?? b.entryAt).getTime()
+            return bTime - aTime
+        })[0]
     if (latestLog) {
         if (latestLog.status === "ENTERED" && !latestLog.exitAt) status = "Inside"
         else if (latestLog.status === "EXITED" || latestLog.exitAt) status = "Left"
@@ -489,19 +495,23 @@ function transformVisitorGroup(group: VisitorGroup): VisitorItem {
         status = "Denied"
     } else if (group.status === "EXPIRED" || visitEnd < now) {
         status = "Left"
-    } else if (visitStart <= now && now <= visitEnd) {
-        status = "Inside"
+    } else {
+        status = "Expected"
     }
 
     const visitorName = group.visitors?.[0]?.name || "Guest"
+
+    const displayType =
+        group.type === "DELIVERY" ? "Delivery" :
+        group.type === "CAB" ? "Cab" : "Guest"
 
     return {
         id: parseInt(group.id.slice(-6), 16) || Date.now(),
         unitId: "",
         hostName: "Me",
         name: visitorName,
-        type: "Guest",
-        code: (group as any).shortCode || group.qrToken?.slice(0, 4).toUpperCase() || "----",
+        type: displayType,
+        code: group.shortCode || group.qrToken?.slice(0, 4).toUpperCase() || "----",
         time: new Date(group.createdAt).toLocaleString('en-GB', {
             day: '2-digit',
             month: 'short',
@@ -527,7 +537,8 @@ export const api = {
         return response
     },
 
-    sendOTP: async (target: string, type: "email" | "phone"): Promise<{ success: boolean; code: string }> => {
+    sendOTP: async (target: string, _type: "email" | "phone"): Promise<{ success: boolean; code: string }> => {
+        void _type
         await httpClient.post("/auth/otp/request", { identifier: target }, { skipAuth: true })
         // Store target for verifyOTP backward compatibility
         if (typeof window !== 'undefined') {
@@ -558,7 +569,8 @@ export const api = {
         }
     },
 
-    verifyPassword: async (password: string): Promise<boolean> => {
+    verifyPassword: async (_password: string): Promise<boolean> => {
+        void _password
         // Verify by attempting to get profile (if token is valid)
         try {
             await httpClient.get("/auth/me")
@@ -568,7 +580,8 @@ export const api = {
         }
     },
 
-    changePassword: async (newPass: string): Promise<boolean> => {
+    changePassword: async (_newPass: string): Promise<boolean> => {
+        void _newPass
         // This would need a dedicated endpoint - stub for now
         return true
     },
@@ -763,7 +776,8 @@ export const api = {
                 visitStart: `${data.date}T${visitorTime}:00`,
                 visitEnd: `${data.date}T23:59:00`,
                 visitors,
-                singleEntry: data.type === "Guest" ? data.singleEntry : false,
+                type: data.type === "Delivery" ? "DELIVERY" : data.type === "Cab" ? "CAB" : "GUEST",
+                singleEntry: data.type === "Guest" ? data.singleEntry : data.type === "Delivery" ? true : false,
             }
             const response = await httpClient.post<{ groupId: string; qrToken: string; expiresAt: string }>("/visitors/groups", request)
             return {
@@ -783,11 +797,14 @@ export const api = {
         return []
     },
 
-    getSavedVisitorById: async (id: string): Promise<SavedVisitorItem | undefined> => {
+    getSavedVisitorById: async (_id: string): Promise<SavedVisitorItem | undefined> => {
+        void _id
         return undefined
     },
 
-    updateSavedVisitor: async (id: string, data: Partial<SavedVisitorItem>): Promise<SavedVisitorItem | undefined> => {
+    updateSavedVisitor: async (_id: string, _data: Partial<SavedVisitorItem>): Promise<SavedVisitorItem | undefined> => {
+        void _id
+        void _data
         return undefined
     },
 
@@ -1100,7 +1117,10 @@ export const api = {
             return activities
                 .sort((a, b) => b._timestamp - a._timestamp)
                 .slice(0, 5)
-                .map(({ _timestamp, ...rest }) => rest)
+                .map(({ _timestamp: _ts, ...rest }) => {
+                    void _ts
+                    return rest
+                })
         } catch {
             return []
         }
@@ -1208,11 +1228,14 @@ export const api = {
         return []
     },
 
-    getCommunityEventById: async (id: number): Promise<CommunityEventItem | undefined> => {
+    getCommunityEventById: async (_id: number): Promise<CommunityEventItem | undefined> => {
+        void _id
         return undefined
     },
 
-    rsvpEvent: async (id: number, status: "going" | "not_going"): Promise<boolean> => {
+    rsvpEvent: async (_id: number, _status: "going" | "not_going"): Promise<boolean> => {
+        void _id
+        void _status
         return false
     },
 
@@ -1266,7 +1289,8 @@ export const api = {
         return []
     },
 
-    getStaffById: async (id: string): Promise<StaffItem | undefined> => {
+    getStaffById: async (_id: string): Promise<StaffItem | undefined> => {
+        void _id
         return undefined
     },
 
@@ -1326,8 +1350,8 @@ export const api = {
 
         getExpectedVisitors: async (): Promise<SecurityVisitorEntry[]> => {
             try {
-                const groups = await httpClient.get<any[]>("/security/visitors/expected")
-                return groups.flatMap(g => g.visitors.map((v: any, idx: number) => ({
+                const groups = await httpClient.get<SecurityVisitorGroup[]>("/security/visitors/expected")
+                return groups.flatMap(g => g.visitors.map((v, idx) => ({
                     id: `${g.id}-${v.id || idx}`,
                     visitorName: v.name,
                     unitNumber: g.unit?.unitNumber || "",
@@ -1346,7 +1370,7 @@ export const api = {
 
         getInsideVisitors: async (): Promise<SecurityVisitorEntry[]> => {
             try {
-                const logs = await httpClient.get<any[]>("/security/logs/visitors")
+                const logs = await httpClient.get<SecurityVisitorLog[]>("/security/logs/visitors")
                 return logs.map(log => ({
                     id: log.id,
                     visitorName: log.group?.visitors?.[0]?.name || "Unknown",
@@ -1367,7 +1391,7 @@ export const api = {
 
         getVisitorHistory: async (): Promise<SecurityVisitorEntry[]> => {
             try {
-                const logs = await httpClient.get<any[]>("/security/logs/visitors")
+                const logs = await httpClient.get<SecurityVisitorLog[]>("/security/logs/visitors")
                 return logs
                     .map(log => ({
                         id: log.id,
@@ -1388,7 +1412,7 @@ export const api = {
         },
 
         scanVisitor: async (data: ScanVisitorRequest): Promise<SecurityVisitorEntry> => {
-            const response = await httpClient.post<any>("/security/visitors/scan", data)
+            const response = await httpClient.post<SecurityScanVisitorResponse>("/security/visitors/scan", data)
             const log = response.log;
             const deniedReason = response.warning === 'DUPLICATE_SCAN' ? 'Duplicate scan (already inside)' : undefined;
             return {
@@ -1409,7 +1433,7 @@ export const api = {
         },
 
         scanVisitorCode: async (data: { code: string; gateId?: string }): Promise<SecurityVisitorEntry> => {
-            const response = await httpClient.post<any>("/security/visitors/scan-code", data)
+            const response = await httpClient.post<SecurityScanVisitorResponse>("/security/visitors/scan-code", data)
             const log = response.log;
             const deniedReason = response.warning === 'DUPLICATE_SCAN' ? 'Duplicate scan (already inside)' : undefined;
             return {
@@ -1430,7 +1454,7 @@ export const api = {
         },
 
         scanStaff: async (data: { qrCodeId: string; gateId?: string; direction?: "IN" | "OUT" }): Promise<SecurityStaffScanEntry> => {
-            const response = await httpClient.post<any>("/security/staff/scan", data)
+            const response = await httpClient.post<SecurityStaffScanEntry>("/security/staff/scan", data)
             return response as SecurityStaffScanEntry
         },
 
@@ -1442,8 +1466,8 @@ export const api = {
             return httpClient.post<{ requestId: string }>("/security/visitors/walkin", data)
         },
 
-        getPendingWalkIns: async (): Promise<any[]> => {
-            return httpClient.get<any[]>("/security/visitors/walkin/pending")
+        getPendingWalkIns: async (): Promise<SecurityPendingWalkIn[]> => {
+            return httpClient.get<SecurityPendingWalkIn[]>("/security/visitors/walkin/pending")
         },
 
         approveWalkInEntry: async (requestId: string, data: WalkInEntryRequest): Promise<SecurityVisitorEntry> => {
@@ -1462,7 +1486,7 @@ export const api = {
         // Vehicles
         getInsideVehicles: async (): Promise<VehicleEntryItem[]> => {
             try {
-                const logs = await httpClient.get<any[]>("/security/vehicles/inside")
+                const logs = await httpClient.get<SecurityVehicleLog[]>("/security/vehicles/inside")
                 return logs.map(log => ({
                     id: log.id,
                     vehicleNumber: log.vehicleNumber,
@@ -1480,7 +1504,7 @@ export const api = {
 
         getVehicleHistory: async (date: string): Promise<VehicleEntryItem[]> => {
             try {
-                const logs = await httpClient.get<any[]>(`/security/vehicles/history?date=${date}`)
+                const logs = await httpClient.get<SecurityVehicleLog[]>(`/security/vehicles/history?date=${date}`)
                 return logs.map(log => ({
                     id: log.id,
                     vehicleNumber: log.vehicleNumber,
@@ -1497,7 +1521,7 @@ export const api = {
             }
         },
 
-        logVehicleEntry: async (data: any): Promise<void> => {
+        logVehicleEntry: async (data: SecurityVehicleEntryRequest): Promise<void> => {
             await httpClient.post("/security/vehicles/entry", {
                 vehicleNumber: data.vehicleNumber,
                 gateId: "gate1", // Hardcoded for now
@@ -1506,7 +1530,7 @@ export const api = {
             })
         },
 
-        logVehicleExit: async (data: any): Promise<void> => {
+        logVehicleExit: async (data: SecurityVehicleExitRequest): Promise<void> => {
             await httpClient.post("/security/vehicles/exit", {
                 vehicleNumber: data.vehicleNumber,
                 gateId: "gate1",
@@ -1522,7 +1546,7 @@ export const api = {
 
         getEmergencyAlerts: async (): Promise<SOSLogItem[]> => {
             try {
-                const alerts = await httpClient.get<any[]>("/security/emergency-alerts")
+                const alerts = await httpClient.get<SecurityEmergencyAlert[]>("/security/emergency-alerts")
                 return alerts.map(alert => ({
                     id: alert.id,
                     residentName: "Resident", // Backend doesn't link to resident directly yet? Or via unit?

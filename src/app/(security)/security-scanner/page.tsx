@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
-import { ScanLine, CheckCircle, XCircle, Search, User, Loader2, QrCode, Smartphone, Camera, RefreshCcw, ArrowLeft } from "lucide-react"
-import { api, SecurityVisitorEntry, SecurityStaffScanEntry } from "@/lib/api"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ScanLine, CheckCircle, XCircle, Loader2, QrCode, Camera, RefreshCcw, ArrowLeft } from "lucide-react"
+import { api, SecurityVisitorEntry, SecurityStaffScanEntry, SecurityScanResponse } from "@/lib/api"
+import { ApiError } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -15,10 +16,53 @@ export default function SecurityScannerPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [scannedVisitor, setScannedVisitor] = useState<SecurityVisitorEntry | null>(null)
     const [scannedStaff, setScannedStaff] = useState<SecurityStaffScanEntry | null>(null)
-    const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle")
+    const [scanStatus, setScanStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     const [errorMessage, setErrorMessage] = useState("")
     const [isCameraActive, setIsCameraActive] = useState(true)
     const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment")
+    const autoCloseTimerRef = useRef<number | null>(null)
+
+    const getScanErrorMessage = (error: unknown) => {
+        if (error instanceof ApiError) {
+            if (error.status === 404) return "Code not recognized"
+            if (error.status === 409) return "Duplicate scan (already inside)"
+            if (error.status === 403) return "You are not authorized to scan"
+            if (error.status === 400) return "Invalid code format"
+            if (error.status >= 500) return "Server error. Please try again"
+
+            const data = error.data as { message?: unknown; error?: unknown } | string | null | undefined
+            if (typeof data === "string" && data.trim()) {
+                if (/not\s*found/i.test(data)) return "Code not recognized"
+                return data
+            }
+            if (data && typeof data === "object") {
+                const message = data.message
+                if (Array.isArray(message)) {
+                    const joined = message.filter((item) => typeof item === "string").join(", ")
+                    if (joined) return joined
+                }
+                if (typeof message === "string" && message.trim()) {
+                    if (/not\s*found/i.test(message)) return "Code not recognized"
+                    return message
+                }
+                if (typeof data.error === "string" && data.error.trim()) {
+                    if (/not\s*found/i.test(data.error)) return "Code not recognized"
+                    return data.error
+                }
+            }
+            if (error.statusText) {
+                if (/not\s*found/i.test(error.statusText)) return "Code not recognized"
+                return error.statusText
+            }
+        }
+
+        if (error && typeof error === "object" && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+            const message = (error as { message: string }).message
+            if (message.trim()) return message
+        }
+
+        return "Invalid code or scan failed"
+    }
 
     const handleQrScan = async (data: string | null) => {
         if (!data) return
@@ -26,6 +70,7 @@ export default function SecurityScannerPage() {
 
         console.log("Scanned Code:", data)
         setIsLoading(true)
+        setScanStatus("loading")
 
         try {
             const response = await api.security.scanAny({ code: data })
@@ -69,9 +114,9 @@ export default function SecurityScannerPage() {
         } catch (error) {
             console.error(error)
             setScanStatus("error")
-            setErrorMessage("Invalid Code or Scan Failed")
-            toast.error("Scan Failed")
-            setTimeout(() => setScanStatus("idle"), 3000)
+            const message = getScanErrorMessage(error)
+            setErrorMessage(message)
+            toast.error("Scan Failed", { description: message })
         } finally {
             setIsLoading(false)
         }
@@ -81,10 +126,10 @@ export default function SecurityScannerPage() {
         e.preventDefault()
         if (code.length >= 4) {
             setIsLoading(true)
-            setScanStatus("idle")
+            setScanStatus("loading")
             setErrorMessage("")
             api.security.scanAny({ code })
-                .then((result: any) => {
+                .then((result: SecurityScanResponse) => {
                     if (result.type === 'STAFF') {
                         const staff = result.staff as SecurityStaffScanEntry
                         setScannedStaff(staff)
@@ -122,29 +167,59 @@ export default function SecurityScannerPage() {
                 .catch((error) => {
                     console.error(error)
                     setScanStatus("error")
-                    setErrorMessage("Invalid Code or Scan Failed")
-                    toast.error("Scan Failed")
-                    setTimeout(() => setScanStatus("idle"), 3000)
+                    const message = getScanErrorMessage(error)
+                    setErrorMessage(message)
+                    toast.error("Scan Failed", { description: message })
                 })
                 .finally(() => setIsLoading(false))
             return
         }
     }
 
-    const resetScan = () => {
+    const resetScan = useCallback(() => {
+        if (autoCloseTimerRef.current !== null) {
+            window.clearTimeout(autoCloseTimerRef.current)
+            autoCloseTimerRef.current = null
+        }
         setScanStatus("idle")
         setScannedVisitor(null)
         setScannedStaff(null)
         setErrorMessage("")
         setIsLoading(false)
         setCode("")
-    }
+    }, [])
 
     const manualInputRef = (node: HTMLInputElement | null) => {
         if (node && !isCameraActive) {
             node.focus()
         }
     }
+
+    useEffect(() => {
+        if (scanStatus === "success" || scanStatus === "error") {
+            if (autoCloseTimerRef.current !== null) {
+                window.clearTimeout(autoCloseTimerRef.current)
+            }
+            autoCloseTimerRef.current = window.setTimeout(() => {
+                resetScan()
+            }, 2000)
+            return
+        }
+
+        if (autoCloseTimerRef.current !== null) {
+            window.clearTimeout(autoCloseTimerRef.current)
+            autoCloseTimerRef.current = null
+        }
+    }, [resetScan, scanStatus])
+
+    useEffect(() => {
+        return () => {
+            if (autoCloseTimerRef.current !== null) {
+                window.clearTimeout(autoCloseTimerRef.current)
+                autoCloseTimerRef.current = null
+            }
+        }
+    }, [])
 
 
     return (
@@ -220,31 +295,60 @@ export default function SecurityScannerPage() {
                 {scanStatus !== "idle" && (
                     <div className="absolute inset-0 z-30 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200 h-full w-full">
                         <div className={cn(
-                            "w-full max-w-sm bg-card text-card-foreground rounded-3xl p-6 shadow-2xl border flex flex-col items-center text-center gap-4",
+                            "w-full max-w-sm bg-card text-white rounded-3xl p-6 shadow-2xl border flex flex-col items-center text-center gap-4",
                             scanStatus === "success" ? "border-green-500/20 bg-zinc-900" : "border-red-500/20 bg-zinc-900"
                         )}>
                             <div className={cn(
                                 "w-16 h-16 rounded-full flex items-center justify-center mb-2",
-                                scanStatus === "success" ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                                scanStatus === "success"
+                                    ? "bg-green-500/20 text-green-500"
+                                    : scanStatus === "loading"
+                                        ? "bg-white/10 text-white"
+                                        : "bg-red-500/20 text-red-500"
                             )}>
-                                {scanStatus === "success" ? <CheckCircle size={32} /> : <XCircle size={32} />}
+                                {scanStatus === "success" ? (
+                                    <CheckCircle size={32} />
+                                ) : scanStatus === "loading" ? (
+                                    <Loader2 size={28} className="animate-spin" />
+                                ) : (
+                                    <XCircle size={32} />
+                                )}
                             </div>
+
+                            {scanStatus === "loading" && (
+                                <>
+                                    <h2 className="text-xl font-bold">Verifying QR</h2>
+                                    <p className="text-white/60 text-sm">Fetching visitor or staff details...</p>
+                                </>
+                            )}
 
                             {scanStatus === "success" && scannedVisitor && (
                                 <>
                                     <h2 className="text-xl font-bold">{scannedVisitor.status === "INSIDE" ? "Access Granted" : "Checked Out"}</h2>
                                     <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
-                                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Visitor</p>
+                                        <p className="text-sm text-white/60 uppercase tracking-wider font-bold">Visitor</p>
                                         <p className="text-lg font-semibold">{scannedVisitor.visitorName}</p>
+                                        <div className="flex justify-between text-xs text-white/60">
+                                            <span>ID</span>
+                                            <span className="font-mono text-white">{scannedVisitor.id}</span>
+                                        </div>
                                         <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
                                             <div className="text-left">
-                                                <p className="text-xs text-muted-foreground">Unit</p>
+                                                <p className="text-xs text-white/60">Unit</p>
                                                 <p className="font-mono">{scannedVisitor.unitNumber}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xs text-muted-foreground">Type</p>
+                                                <p className="text-xs text-white/60">Type</p>
                                                 <p className="font-medium">{scannedVisitor.type}</p>
                                             </div>
+                                        </div>
+                                        <div className="flex justify-between mt-2 text-xs text-white/60">
+                                            <span>{scannedVisitor.status === "INSIDE" ? "Checked In" : "Checked Out"}</span>
+                                            <span className="font-mono text-white">
+                                                {scannedVisitor.status === "INSIDE"
+                                                    ? (scannedVisitor.entryTime ? new Date(scannedVisitor.entryTime).toLocaleTimeString() : "-")
+                                                    : (scannedVisitor.exitTime ? new Date(scannedVisitor.exitTime).toLocaleTimeString() : "-")}
+                                            </span>
                                         </div>
                                         {scannedVisitor.status === "DENIED" && (
                                             <div className="mt-3 text-xs text-red-400">
@@ -259,17 +363,33 @@ export default function SecurityScannerPage() {
                                 <>
                                     <h2 className="text-xl font-bold">{scannedStaff.status === "IN" ? "Check-In" : "Check-Out"}</h2>
                                     <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
-                                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Staff</p>
+                                        <p className="text-sm text-white/60 uppercase tracking-wider font-bold">Staff</p>
                                         <p className="text-lg font-semibold">{scannedStaff.staffName || scannedStaff.staffId}</p>
+                                        <div className="flex justify-between text-xs text-white/60">
+                                            <span>Staff ID</span>
+                                            <span className="font-mono text-white">{scannedStaff.staffId}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-white/60">
+                                            <span>Log ID</span>
+                                            <span className="font-mono text-white">{scannedStaff.id}</span>
+                                        </div>
                                         <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
                                             <div className="text-left">
-                                                <p className="text-xs text-muted-foreground">Unit</p>
+                                                <p className="text-xs text-white/60">Unit</p>
                                                 <p className="font-mono">{scannedStaff.unitNumber || "-"}</p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-xs text-muted-foreground">Status</p>
+                                                <p className="text-xs text-white/60">Status</p>
                                                 <p className="font-medium">{scannedStaff.status}</p>
                                             </div>
+                                        </div>
+                                        <div className="flex justify-between mt-2 text-xs text-white/60">
+                                            <span>{scannedStaff.status === "IN" ? "Checked In" : "Checked Out"}</span>
+                                            <span className="font-mono text-white">
+                                                {scannedStaff.status === "IN"
+                                                    ? (scannedStaff.checkInAt ? new Date(scannedStaff.checkInAt).toLocaleTimeString() : "-")
+                                                    : (scannedStaff.checkOutAt ? new Date(scannedStaff.checkOutAt).toLocaleTimeString() : "-")}
+                                            </span>
                                         </div>
                                     </div>
                                 </>
@@ -278,7 +398,7 @@ export default function SecurityScannerPage() {
                             {scanStatus === "error" && (
                                 <>
                                     <h2 className="text-xl font-bold text-red-500">Scan Failed</h2>
-                                    <p className="text-muted-foreground">{errorMessage}</p>
+                                    <p className="text-white/70">{errorMessage}</p>
                                 </>
                             )}
 

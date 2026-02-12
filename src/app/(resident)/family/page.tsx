@@ -1,15 +1,15 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect } from "react"
 import {
     ArrowLeft,
-    Plus,
     Edit2,
     Trash2,
     Users,
     User,
     Loader2,
-    Check,
     X,
     Camera
 } from "lucide-react"
@@ -262,7 +262,7 @@ export default function FamilyPage() {
                                     <select
                                         className="flex h-10 w-full rounded-md border border-border bg-accent/50 px-3 py-2 text-sm text-foreground ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
                                         value={formData.relation}
-                                        onChange={(e) => setFormData({ ...formData, relation: e.target.value as any })}
+                                        onChange={(e) => setFormData({ ...formData, relation: e.target.value as FamilyMemberItem["relation"] })}
                                     >
                                         <option value="Spouse">Spouse</option>
                                         <option value="Child">Child</option>
