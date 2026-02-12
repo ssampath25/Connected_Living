@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ChevronLeft, Clock, MapPin, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, CommunityEventItem } from "@/lib/api"
+import { getMyEvents } from "@/lib/api"
 
 export default function CommunityEventsPage() {
     const router = useRouter()
@@ -13,14 +14,19 @@ export default function CommunityEventsPage() {
 
     useEffect(() => {
         const loadEvents = async () => {
-            const data = await api.getCommunityEvents()
-            // Check if user has ANY events (including pending)
-            const userHasEvents = data.some(e => e.creatorId === "U-123")
-            setHasHostedEvents(userHasEvents)
+            try {
+                // Check if user has ANY events (including pending)
+                const myEvents = await getMyEvents()
+                setHasHostedEvents(myEvents.length > 0)
 
-            // Only show approved events (or events without status for legacy)
-            const publicEvents = data.filter(e => !e.status || e.status === "approved")
-            setEvents(publicEvents)
+                // Load approved events for public display
+                const data = await api.getCommunityEvents()
+                // Only show approved events (or events without status for legacy)
+                const publicEvents = data.filter(e => !e.status || e.status === "approved")
+                setEvents(publicEvents)
+            } catch (error) {
+                console.error("Failed to load events", error)
+            }
         }
         loadEvents()
     }, [])
@@ -62,7 +68,7 @@ export default function CommunityEventsPage() {
             </div>
 
             {/* Events List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
                 {events.map((event) => (
                     <div
                         key={event.id}
@@ -121,22 +127,19 @@ export default function CommunityEventsPage() {
                 {events.length === 0 && (
                     <div className="text-center py-10 text-muted-foreground text-xs">No upcoming events</div>
                 )}
-
-                {/* Spacing for bottom button */}
-                <div className="h-16" />
-
-                {/* My Hosted Events Button - Only if user has events */}
-                {hasHostedEvents && (
-                    <div className="flex justify-center mb-8">
-                        <button
-                            onClick={() => router.push("/community/events/my")}
-                            className="bg-card text-primary px-6 py-3 rounded-full shadow-[0_4px_20px_rgb(0,0,0,0.15)] border border-border hover:bg-accent transition-transform hover:scale-105 active:scale-95 flex items-center gap-2 font-bold text-xs uppercase tracking-wide"
-                        >
-                            View My Hosted Events
-                        </button>
-                    </div>
-                )}
             </div>
+
+            {/* My Hosted Events Button - Fixed at bottom center */}
+            {hasHostedEvents && (
+                <div className="fixed bottom-24 left-0 right-0 flex justify-center z-30 lg:bottom-10 pointer-events-none px-4">
+                    <button
+                        onClick={() => router.push("/community/events/my")}
+                        className="bg-card text-primary px-6 py-3 rounded-full shadow-[0_4px_20px_rgb(0,0,0,0.15)] border-2 border-primary/20 hover:bg-primary hover:text-primary-foreground transition-all hover:scale-105 active:scale-95 flex items-center gap-2 font-bold text-xs uppercase tracking-wide pointer-events-auto"
+                    >
+                        View My Hosted Events
+                    </button>
+                </div>
+            )}
 
             {/* Create Event FAB */}
             <button

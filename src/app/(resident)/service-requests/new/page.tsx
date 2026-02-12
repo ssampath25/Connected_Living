@@ -1,7 +1,9 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import React, { useState, useRef } from "react"
-import { ArrowLeft, Upload, Camera, Zap, Waves, Hammer, Package, MessageSquare, CheckCircle2, Mic, Users, X, AlertCircle, AlertTriangle, Calendar as CalendarIcon } from "lucide-react"
+import { ArrowLeft, Camera, Zap, Waves, Hammer, Package, MessageSquare, CheckCircle2, Mic, Users, X, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
@@ -34,7 +36,7 @@ export default function NewServiceRequestPage() {
         try {
             await api.triggerSOS()
             router.push('/dashboard')
-        } catch (error) {
+        } catch {
             console.error("Failed to trigger SOS")
         }
     }
@@ -74,12 +76,17 @@ export default function NewServiceRequestPage() {
             formData.append("preferredTime", time)
         }
 
-        console.log("Submitting Service Request:", Object.fromEntries(formData))
-
-        // TODO: Call API endpoint here
-        // await api.createServiceRequest(formData)
-
-        router.push('/service-requests')
+        // Call API endpoint
+        try {
+            await api.createServiceRequest({
+                category: selectedCategory,
+                description: description,
+                priority: "MEDIUM" // Default priority
+            })
+            router.push('/service-requests')
+        } catch {
+            console.error("Failed to create request")
+        }
     }
 
     return (

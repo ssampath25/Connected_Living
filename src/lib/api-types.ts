@@ -44,13 +44,17 @@ export interface ResidentProfile {
 // --- Visitors ---
 export interface VisitorGroup {
     id: string;
-    qrToken: string;
-    purpose: string;
-    expectedFrom: string;
-    expectedTo: string;
+    qrToken?: string;
+    shortCode?: string;
+    visitStart: string;
+    visitEnd: string;
     status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+    type?: 'GUEST' | 'DELIVERY' | 'CAB';
+    singleEntry?: boolean;
+    entryLogs?: { entryAt: string; exitAt?: string; status: 'ENTERED' | 'EXITED' | 'DENIED' }[];
     visitors: Visitor[];
     createdAt: string;
+    unit?: { unitNumber: string };
 }
 
 export interface Visitor {
@@ -61,13 +65,12 @@ export interface Visitor {
 }
 
 export interface CreateVisitorGroupRequest {
-    purpose: string;
-    expectedFrom: string;
-    expectedTo: string;
-    visitors: { name: string; phone?: string; vehicleNumber?: string }[];
-    type?: string;
-    relation?: string;
-    avatar?: string;
+    unitId: string;
+    visitStart: string;
+    visitEnd: string;
+    visitors: { name: string; mobileNumber?: string }[];
+    type: 'GUEST' | 'DELIVERY' | 'CAB';
+    singleEntry?: boolean;
 }
 
 export interface RecurringStaff {
@@ -78,7 +81,9 @@ export interface RecurringStaff {
     scheduleType: 'DAILY' | 'WEEKLY' | 'MONTHLY';
     validFrom: string;
     validTo: string;
+    qrCodeId: string;
     status: 'ACTIVE' | 'DEACTIVATED';
+    createdAt?: string;
 }
 
 export interface CreateRecurringStaffRequest {
@@ -342,4 +347,202 @@ export interface PaginatedResponse<T> {
 export interface ApiSuccessResponse {
     success: boolean;
     message?: string;
+}
+
+export interface WalkInEntryRequest {
+    gateId: string;
+    notes?: string;
+}
+
+export interface SecurityVisitorEntry {
+    id: string;
+    visitorName: string;
+    unitNumber: string;
+    status: 'EXPECTED' | 'INSIDE' | 'EXITED' | 'DENIED';
+    type: 'GUEST' | 'DELIVERY' | 'CAB' | 'SERVICE';
+    entryTime?: string;
+    exitTime?: string;
+    vehicleNumber?: string;
+    mobileNumber?: string;
+    photoUrl?: string;
+    gateId?: string;
+    qrCode?: string;
+    approvalType?: 'Pre-approved' | 'Sudden';
+    deniedReason?: string;
+}
+
+export interface SecurityStaffScanEntry {
+    id: string;
+    staffId: string;
+    staffName?: string;
+    unitNumber?: string;
+    guardId: string;
+    gateId: string;
+    checkInAt?: string;
+    checkOutAt?: string;
+    status: 'IN' | 'OUT';
+    outsideSchedule?: boolean;
+    createdAt: string;
+}
+
+export interface SecurityVisitorGroup {
+    id: string;
+    visitStart: string;
+    visitEnd: string;
+    type?: 'DELIVERY' | 'GUEST' | 'CAB' | 'SERVICE';
+    unit?: { unitNumber?: string };
+    visitors: { id?: string; name: string; mobileNumber?: string; vehicleNumber?: string }[];
+    shortCode?: string;
+}
+
+export interface SecurityVisitorLog {
+    id: string;
+    status: 'ENTERED' | 'EXITED' | 'DENIED';
+    entryAt?: string;
+    exitAt?: string | null;
+    photoUrl?: string;
+    gateId?: string;
+    scanMethod?: 'QR' | 'MANUAL' | 'CODE' | string;
+    group?: {
+        type?: 'DELIVERY' | 'GUEST' | 'CAB' | 'SERVICE';
+        shortCode?: string;
+        unit?: { unitNumber?: string };
+        visitors?: { name: string; mobileNumber?: string }[];
+    };
+}
+
+export interface SecurityScanVisitorResponse {
+    log: SecurityVisitorLog;
+    allowed: boolean;
+    checkedOut: boolean;
+    warning?: string;
+}
+
+export type SecurityScanResponse =
+    | { type: 'VISITOR'; log: SecurityVisitorLog; allowed: boolean; checkedOut: boolean }
+    | { type: 'STAFF'; staff: SecurityStaffScanEntry };
+
+export interface SecurityPendingWalkIn {
+    id: string;
+    name?: string;
+    unitId?: string;
+    status?: string;
+    requestedAt?: string;
+}
+
+export interface SecurityVehicleLog {
+    id: string;
+    vehicleNumber: string;
+    direction?: 'IN' | 'OUT';
+    entryAt?: string;
+    exitAt?: string;
+    unitId?: string;
+    ownerName?: string;
+    status?: string;
+    gateId?: string;
+    vehicle?: { type?: string; category?: string };
+}
+
+export interface SecurityEmergencyAlert {
+    id: string;
+    type?: string;
+    status?: string;
+    createdAt?: string;
+    message?: string;
+}
+
+export interface SecurityVehicleEntryRequest {
+    vehicleNumber: string;
+    type?: string;
+    ownerName: string;
+    unitId: string;
+    purpose?: string;
+    gateId?: string;
+}
+
+export interface SecurityVehicleExitRequest {
+    vehicleNumber: string;
+    unitId: string;
+    gateId?: string;
+}
+
+// --- Security ---
+export interface SecurityLoginRequest {
+    username: string;
+    password: string;
+    deviceId: string;
+}
+
+export interface SecurityRefreshRequest {
+    refreshToken: string;
+}
+
+export interface SecurityAuthResponse {
+    accessToken: string;
+    refreshToken: string;
+    guard: {
+        id: string;
+        fullName: string;
+        username: string;
+        role: string;
+        status: string;
+        communityId: string;
+    };
+    shift: {
+        id: string;
+        gateId: string;
+        startAt: string;
+        endAt?: string;
+    };
+    gate: {
+        id: string;
+        name: string;
+        status: string;
+    };
+}
+
+export interface SecurityDashboardStats {
+    totalEntries: number;
+    activeVisitors: number;
+    staffInside: number;
+    vehiclesInside: number;
+    pendingApprovals: number;
+    pendingDeliveries: number;
+}
+
+export interface ScanVisitorRequest {
+    qrToken: string;
+    gateId?: string;
+}
+
+export interface CreateWalkInRequest {
+    visitorName: string;
+    unitNumber: string;
+    mobileNumber?: string;
+    photoUrl?: string;
+    purpose?: string;
+    vehicleNumber?: string;
+
+}
+
+export interface SOSLogItem {
+    id: string;
+    residentName: string;
+    unitId: string;
+    location: string;
+    time: string;
+    status: string;
+    message?: string;
+}
+
+export interface SecurityVehicleLog {
+    id: string;
+    vehicleNumber: string;
+    type: string;
+    ownerName: string;
+    unitId: string;
+    status: string;
+    entryTime: string;
+    exitTime?: string;
+    date: string;
 }

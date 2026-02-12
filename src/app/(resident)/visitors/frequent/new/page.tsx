@@ -1,10 +1,12 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Save, User, Calendar, Clock, IdCard } from "lucide-react"
+import { ArrowLeft, Save, User, Calendar, Clock, IdCard, Phone, Camera, Repeat } from "lucide-react"
 import { api } from "@/lib/api"
-import { toast } from "sonner"
+import { StaffIdCard } from "@/components/staff-id-card"
 
 export default function NewFrequentVisitorPage() {
     const router = useRouter()
@@ -14,38 +16,80 @@ export default function NewFrequentVisitorPage() {
     const [name, setName] = useState("")
     const [type, setType] = useState<"Guest" | "Delivery" | "Cab" | "Staff">("Staff")
     const [relation, setRelation] = useState("")
+    const [mobile, setMobile] = useState("")
     const [validUntil, setValidUntil] = useState("")
+    const [scheduleType, setScheduleType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("DAILY")
+    const [photoPreview, setPhotoPreview] = useState("")
     const dateInputRef = useRef<HTMLInputElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Optional Time Slot
     const [hasTimeSlot, setHasTimeSlot] = useState(false)
     const [allowedTimeSlot, setAllowedTimeSlot] = useState("Morning (8am-12pm)")
     const TIME_SLOTS = ["Morning (8am-12pm)", "Afternoon (12pm-4pm)", "Evening (4pm-9pm)", "All Day"]
 
+    // ID Card State
+    const [showIdCard, setShowIdCard] = useState(false)
+    const [createdStaff, setCreatedStaff] = useState<{
+        id: string
+        qrCodeId: string
+        name: string
+        validTo: string
+        photoUrl: string
+        scheduleType: string
+    } | null>(null)
+
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setPhotoPreview(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
     const handleSubmit = async () => {
-        if (!name || !validUntil) {
-            // Simple validation feedback (could use toast if installed)
-            alert("Please fill required fields")
+        if (!name || !validUntil || !mobile) {
+            alert("Please fill all required fields (Name, Mobile, Valid Until)")
+            return
+        }
+        if (!photoPreview) {
+            alert("Please upload a photo")
             return
         }
 
         setLoading(true)
         try {
-            await api.addFrequentVisitor({
+            const result = await api.addFrequentVisitor({
                 name,
                 type,
                 relation,
+                mobile,
+                photoUrl: photoPreview,
+                scheduleType,
                 validUntil,
                 allowedTimeSlot: hasTimeSlot ? allowedTimeSlot : undefined,
                 isActive: true,
                 avatar: name[0].toUpperCase()
             })
-            // Success feedback
-            setTimeout(() => router.push('/visitors'), 500)
+            if (result) {
+                setCreatedStaff({
+                    id: result.id,
+                    qrCodeId: result.qrCodeId,
+                    name: result.name,
+                    validTo: result.validTo || validUntil,
+                    photoUrl: photoPreview,
+                    scheduleType,
+                })
+                setShowIdCard(true)
+            }
         } catch (error) {
             console.error(error)
-            setLoading(false)
+            alert("Failed to create pass. Please try again.")
         }
+        setLoading(false)
     }
 
     return (
@@ -70,17 +114,57 @@ export default function NewFrequentVisitorPage() {
                     <div>
                         <h3 className="text-sm font-bold text-primary">Frequent Visitor Pass</h3>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Create a pass for maids, drivers, or tutors. They can enter using their code until the validity expires.
+                            Create a pass for maids, drivers, or tutors. A shareable QR ID card will be generated.
                         </p>
                     </div>
                 </div>
 
                 {/* Form Fields */}
                 <div className="space-y-4">
+
+                    {/* Photo Upload */}
+                    <div className="bg-card p-4 rounded-2xl border border-border shadow-sm">
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
+                            <Camera size={14} />
+                            Photo <span className="text-destructive">*</span>
+                        </label>
+                        <div className="flex items-center gap-4">
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-20 h-20 rounded-xl bg-accent/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer flex items-center justify-center overflow-hidden transition-all"
+                            >
+                                {photoPreview ? (
+                                    <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Camera size={24} className="text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-sm font-semibold text-primary hover:underline"
+                                >
+                                    {photoPreview ? "Change Photo" : "Upload Photo"}
+                                </button>
+                                <p className="text-[10px] text-muted-foreground mt-1">Required for ID card generation</p>
+                            </div>
+                        </div>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={handleImageUpload}
+                        />
+                    </div>
+
                     {/* Name */}
                     <div className="bg-card p-4 rounded-2xl border border-border space-y-4 shadow-sm">
                         <div>
-                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Visitor Name</label>
+                            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                Visitor Name <span className="text-destructive">*</span>
+                            </label>
                             <div className="flex items-center gap-3 mt-2">
                                 <User size={18} className="text-muted-foreground" />
                                 <input
@@ -94,6 +178,24 @@ export default function NewFrequentVisitorPage() {
                         </div>
                     </div>
 
+                    {/* Mobile Number */}
+                    <div className="bg-card p-4 rounded-2xl border border-border shadow-sm">
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            Mobile Number <span className="text-destructive">*</span>
+                        </label>
+                        <div className="flex items-center gap-3 mt-2">
+                            <Phone size={18} className="text-muted-foreground" />
+                            <input
+                                type="tel"
+                                value={mobile}
+                                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                                placeholder="10-digit mobile number"
+                                maxLength={10}
+                                className="flex-1 bg-transparent outline-none text-foreground font-semibold placeholder:text-muted-foreground font-mono"
+                            />
+                        </div>
+                    </div>
+
                     {/* Type & Relation */}
                     <div className="bg-card p-4 rounded-2xl border border-border space-y-4 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
@@ -101,7 +203,7 @@ export default function NewFrequentVisitorPage() {
                                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Type</label>
                                 <select
                                     value={type}
-                                    onChange={(e) => setType(e.target.value as any)}
+                                    onChange={(e) => setType(e.target.value as "Guest" | "Delivery" | "Cab" | "Staff")}
                                     className="w-full mt-2 bg-background p-2 rounded-lg text-sm font-semibold text-foreground outline-none focus:ring-2 focus:ring-primary/20 border border-border"
                                 >
                                     <option value="Staff">Staff</option>
@@ -123,12 +225,34 @@ export default function NewFrequentVisitorPage() {
                         </div>
                     </div>
 
+                    {/* Schedule Type */}
+                    <div className="bg-card p-4 rounded-2xl border border-border shadow-sm">
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2 mb-3">
+                            <Repeat size={14} />
+                            Schedule Type <span className="text-destructive">*</span>
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {(["DAILY", "WEEKLY", "MONTHLY"] as const).map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => setScheduleType(s)}
+                                    className={`p-3 rounded-xl text-xs font-bold border transition-all text-center ${scheduleType === s
+                                        ? "bg-primary/10 border-primary/30 text-primary"
+                                        : "bg-accent/50 border-transparent text-muted-foreground hover:bg-accent"
+                                        }`}
+                                >
+                                    {s.charAt(0) + s.slice(1).toLowerCase()}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Validity */}
                     <div className="bg-card p-4 rounded-2xl border border-border space-y-4 shadow-sm">
                         <div>
                             <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                 <Calendar size={14} />
-                                Valid Until
+                                Valid Until <span className="text-destructive">*</span>
                             </label>
                             <div
                                 className="relative group mt-2"
@@ -151,7 +275,7 @@ export default function NewFrequentVisitorPage() {
                                 />
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-2">
-                                The code will stop working after this date.
+                                The QR code will stop working after this date.
                             </p>
                         </div>
                     </div>
@@ -211,6 +335,23 @@ export default function NewFrequentVisitorPage() {
                     )}
                 </button>
             </div>
+
+            {/* ID Card Modal */}
+            {showIdCard && createdStaff && (
+                <StaffIdCard
+                    staffName={createdStaff.name}
+                    role={relation || type}
+                    photoUrl={createdStaff.photoUrl}
+                    staffId={createdStaff.id}
+                    qrCodeId={createdStaff.qrCodeId}
+                    validThru={createdStaff.validTo}
+                    scheduleType={createdStaff.scheduleType}
+                    onClose={() => {
+                        setShowIdCard(false)
+                        router.push("/visitors")
+                    }}
+                />
+            )}
         </div>
     )
 }

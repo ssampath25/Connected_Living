@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Car, Search, ChevronLeft, CheckCircle, Clock, Calendar as CalendarIcon, Plus, X } from "lucide-react"
+import { useEffect, useState, useCallback } from "react"
+import { Car, Search, ChevronLeft, Clock, Calendar as CalendarIcon, Plus, X } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,15 +28,12 @@ export default function SecurityVehiclesPage() {
         purpose: ""
     })
 
-    useEffect(() => {
-        fetchVehicles()
-    }, [selectedDate])
-
-    const fetchVehicles = async () => {
+    const fetchVehicles = useCallback(async () => {
         setLoading(true)
         try {
             const dateStr = selectedDate.toISOString().split('T')[0]
-            const data = await api.getVehicleEntries(dateStr)
+            // Use getVehicleHistory regardless of date for now, as it supports date filtering
+            const data = await api.security.getVehicleHistory(dateStr)
             setVehicles(data)
         } catch (error) {
             console.error("Failed to fetch vehicles:", error)
@@ -44,7 +41,11 @@ export default function SecurityVehiclesPage() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [selectedDate])
+
+    useEffect(() => {
+        fetchVehicles()
+    }, [fetchVehicles])
 
     const handleAddVehicle = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -55,7 +56,7 @@ export default function SecurityVehiclesPage() {
 
         setIsSubmitting(true)
         try {
-            await api.addVehicleEntry(formData)
+            await api.security.logVehicleEntry(formData)
             toast.success("Vehicle entry added successfully")
             setShowAddModal(false)
             setFormData({
@@ -76,7 +77,16 @@ export default function SecurityVehiclesPage() {
 
     const handleMarkExit = async (id: string, vehicleNumber: string) => {
         try {
-            await api.markVehicleExit(id)
+            // Need unitId and gateId for exit... api.security.logVehicleExit needs object
+            // But logVehicleExit in api.ts takes { vehicleNumber, unitId, ... }
+            // We have vehicle from list.
+            const vehicle = vehicles.find(v => v.id === id)
+            if (!vehicle) return
+
+            await api.security.logVehicleExit({
+                vehicleNumber,
+                unitId: vehicle.unitId
+            })
             toast.success(`${vehicleNumber} marked as exited`)
             fetchVehicles()
         } catch (error) {
@@ -92,10 +102,6 @@ export default function SecurityVehiclesPage() {
         const matchesFilter = filter === "all" || v.status === filter
         return matchesSearch && matchesFilter
     })
-
-    const getTypeIcon = (type: string) => {
-        return Car // Simplified - using Car icon for all
-    }
 
     if (loading) {
         return (
@@ -272,7 +278,7 @@ export default function SecurityVehiclesPage() {
                                 </label>
                                 <select
                                     value={formData.type}
-                                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+                                    onChange={(e) => setFormData({ ...formData, type: e.target.value as "Car" | "Bike" | "Truck" | "Auto" })}
                                     className="w-full h-12 px-4 bg-muted rounded-xl border border-border text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                                 >
                                     <option value="Car">Car</option>

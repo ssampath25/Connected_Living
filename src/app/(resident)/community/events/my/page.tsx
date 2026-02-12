@@ -3,21 +3,18 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Plus, Calendar, Clock, MapPin, AlertCircle, CheckCircle2, XCircle, Clock3 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { api, CommunityEventItem } from "@/lib/api"
+import { getMyEvents } from "@/lib/api"
+import type { CommunityEvent } from "@/lib/api-types"
 
 export default function MyHostedEventsPage() {
     const router = useRouter()
-    const [myEvents, setMyEvents] = useState<CommunityEventItem[]>([])
+    const [myEvents, setMyEvents] = useState<CommunityEvent[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const loadMyEvents = async () => {
             try {
-                // In a real app key off user ID. For mock, we filter or just use all for demo if we haven't set creatorId on all.
-                // Let's filter by the mock creatorId "U-123" which we use for created events.
-                const allEvents = await api.getCommunityEvents()
-                const userEvents = allEvents.filter(e => e.creatorId === "U-123")
+                const userEvents = await getMyEvents()
                 setMyEvents(userEvents)
             } catch (error) {
                 console.error("Failed to load my events", error)
@@ -29,22 +26,29 @@ export default function MyHostedEventsPage() {
     }, [])
 
     const getStatusBadge = (status?: string) => {
-        switch (status) {
-            case "approved":
+        switch (status?.toUpperCase()) {
+            case "APPROVED":
                 return (
                     <div className="flex items-center gap-1 bg-green-500/10 text-green-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-green-500/20">
                         <CheckCircle2 size={12} />
                         Approved
                     </div>
                 )
-            case "rejected":
+            case "REJECTED":
                 return (
                     <div className="flex items-center gap-1 bg-destructive/10 text-destructive px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-destructive/20">
                         <XCircle size={12} />
                         Rejected
                     </div>
                 )
-            default: // pending
+            case "CANCELLED":
+                return (
+                    <div className="flex items-center gap-1 bg-gray-500/10 text-gray-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-gray-500/20">
+                        <XCircle size={12} />
+                        Cancelled
+                    </div>
+                )
+            default: // PENDING
                 return (
                     <div className="flex items-center gap-1 bg-yellow-500/10 text-yellow-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide border border-yellow-500/20">
                         <Clock3 size={12} />
@@ -52,6 +56,17 @@ export default function MyHostedEventsPage() {
                     </div>
                 )
         }
+    }
+
+    const formatEventDate = (dateString: string) => {
+        const date = new Date(dateString)
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        })
     }
 
     return (
@@ -84,7 +99,7 @@ export default function MyHostedEventsPage() {
                             <Calendar className="text-muted-foreground h-10 w-10 opacity-50" />
                         </div>
                         <h3 className="text-foreground font-bold mb-1">No Events Yet</h3>
-                        <p className="text-muted-foreground text-sm mb-6 max-w-xs">You haven't hosted any events or submitted any requests yet.</p>
+                        <p className="text-muted-foreground text-sm mb-6 max-w-xs">You haven&apos;t hosted any events or submitted any requests yet.</p>
                         <button
                             onClick={() => router.push("/community/events/create")}
                             className="text-primary font-bold text-sm bg-primary/10 px-6 py-3 rounded-xl hover:bg-primary/20 transition-colors"
@@ -105,10 +120,14 @@ export default function MyHostedEventsPage() {
 
                             <h3 className="text-lg font-bold text-foreground mb-2 leading-tight">{event.title}</h3>
 
+                            {event.description && (
+                                <p className="text-sm text-muted-foreground mb-3">{event.description}</p>
+                            )}
+
                             <div className="space-y-2 mb-4">
                                 <div className="flex items-center text-muted-foreground text-xs font-medium">
                                     <Clock className="w-3.5 h-3.5 mr-2 text-indigo-400" />
-                                    {event.time}
+                                    {formatEventDate(event.eventDate)}
                                 </div>
                                 <div className="flex items-center text-muted-foreground text-xs font-medium">
                                     <MapPin className="w-3.5 h-3.5 mr-2 text-pink-400" />
@@ -117,10 +136,17 @@ export default function MyHostedEventsPage() {
                             </div>
 
                             {/* Action Placeholder (e.g. Edit/Cancel) - could enable later */}
-                            {event.status === 'pending' && (
+                            {event.status === 'PENDING' && (
                                 <div className="mt-3 pt-3 border-t border-border text-[10px] text-muted-foreground font-medium flex items-center gap-1.5">
                                     <AlertCircle size={12} />
                                     Waiting for admin approval. You will be notified once reviewed.
+                                </div>
+                            )}
+
+                            {event.status === 'REJECTED' && event.rejectionReason && (
+                                <div className="mt-3 pt-3 border-t border-destructive/20 text-[10px] text-destructive font-medium flex items-start gap-1.5">
+                                    <XCircle size={12} className="mt-0.5 flex-shrink-0" />
+                                    <span>Rejection reason: {event.rejectionReason}</span>
                                 </div>
                             )}
                         </div>

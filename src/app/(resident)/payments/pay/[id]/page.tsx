@@ -31,7 +31,7 @@ export default function ConfirmPaymentPage({ params }: { params: Promise<{ id: s
             setTimeout(() => {
                 router.push("/payments")
             }, 2000)
-        } catch (error) {
+        } catch {
             toast.error("Payment failed. Please try again.")
             setProcessing(false)
         }

@@ -1,17 +1,29 @@
 "use client"
 
-import { ArrowLeft, User, Truck, Car, CheckCircle, Share2, ShieldCheck, Mail, Phone, Calendar, Clock, Camera } from "lucide-react"
+/* eslint-disable @next/next/no-img-element */
+
+import { ArrowLeft, User, Truck, Car, Share2, ShieldCheck, Mail, Phone, Calendar, Clock, Camera } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, type ComponentType, type ChangeEvent, type InputHTMLAttributes } from "react"
 import { cn } from "@/lib/utils"
-// Assuming api is available
 import { api, InviteParams } from "@/lib/api"
+import { VisitorGroupCard } from "@/components/visitor-group-card"
 
 export default function InviteVisitorPage() {
     const router = useRouter()
     const [visitorType, setVisitorType] = useState<"guest" | "delivery" | "cab">("guest")
     const [loading, setLoading] = useState(false)
-    const [successData, setSuccessData] = useState<{ code?: string, message: string } | null>(null)
+    const [successData, setSuccessData] = useState<{ code?: string, qrToken?: string, message: string } | null>(null)
+    type VerifiedVisitorGroup = {
+        visitors: { name: string }[]
+        visitStart: string
+        visitEnd: string
+        hostName: string
+        unitNumber: string
+        blockTower?: string
+        communityName?: string
+    }
+    const [visitorGroup, setVisitorGroup] = useState<VerifiedVisitorGroup | null>(null)
 
     // Form States
     const [formData, setFormData] = useState({
@@ -19,15 +31,14 @@ export default function InviteVisitorPage() {
         date: new Date().toISOString().split('T')[0],
         time: "18:00",
 
-        // Guest
-        name: "",
-        phone: "",
-        email: "",
-        photo: "",
+        // Guest (Multiple)
+        guests: [{ id: 1, name: "", phone: "", email: "", photo: "" }],
         singleEntry: true,
 
         // Delivery
         vendor: "", // "Amazon", "Zomato" etc.
+        name: "", // Delivery person name
+        phone: "",
 
         // Cab
         driverName: "",
@@ -35,6 +46,25 @@ export default function InviteVisitorPage() {
         service: "", // "Uber", "Ola"
         model: ""
     })
+
+    // Fetch group details when successData has a token
+    useEffect(() => {
+        if (successData?.qrToken) {
+            const fetchGroup = async () => {
+                try {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api/v1"
+                    const res = await fetch(`${apiUrl}/visitors/groups/pass/verify?token=${encodeURIComponent(successData.qrToken!)}`)
+                    if (res.ok) {
+                        const data = await res.json()
+                        setVisitorGroup(data)
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch group details", e)
+                }
+            }
+            fetchGroup()
+        }
+    }, [successData])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target
@@ -44,12 +74,34 @@ export default function InviteVisitorPage() {
         }))
     }
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Guest Handlers
+    const handleGuestChange = (index: number, field: string, value: string) => {
+        const newGuests = [...formData.guests]
+        newGuests[index] = { ...newGuests[index], [field]: value }
+        setFormData(prev => ({ ...prev, guests: newGuests }))
+    }
+
+    const addGuest = () => {
+        setFormData(prev => ({
+            ...prev,
+            guests: [...prev.guests, { id: Date.now(), name: "", phone: "", email: "", photo: "" }]
+        }))
+    }
+
+    const removeGuest = (index: number) => {
+        if (formData.guests.length === 1) return
+        setFormData(prev => ({
+            ...prev,
+            guests: prev.guests.filter((_, i) => i !== index)
+        }))
+    }
+
+    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
         const file = e.target.files?.[0]
         if (file) {
             const reader = new FileReader()
             reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, photo: reader.result as string }))
+                handleGuestChange(index, 'photo', reader.result as string)
             }
             reader.readAsDataURL(file)
         }
@@ -61,13 +113,13 @@ export default function InviteVisitorPage() {
 
         // Validation Logic
         if (visitorType === 'guest') {
-            if (!formData.name || !formData.date || !formData.time) {
-                alert("Please fill all mandatory fields")
+            if (formData.guests.some(g => !g.name)) {
+                alert("Please fill all guest names")
                 setLoading(false)
                 return
             }
-            if (!formData.phone && !formData.email) {
-                alert("Either Phone or Email is required for Guests")
+            if (!formData.date || !formData.time) {
+                alert("Date and Time are mandatory")
                 setLoading(false)
                 return
             }
@@ -90,20 +142,22 @@ export default function InviteVisitorPage() {
             if (visitorType === 'guest') {
                 payload = {
                     type: "Guest",
-                    name: formData.name,
+                    guests: formData.guests.map(g => ({
+                        name: g.name,
+                        phone: g.phone,
+                        email: g.email,
+                        avatar: g.photo
+                    })),
                     date: formData.date,
                     time: formData.time,
-                    singleEntry: formData.singleEntry,
-                    phone: formData.phone,
-                    email: formData.email,
-                    avatar: formData.photo
+                    singleEntry: formData.singleEntry
                 }
             } else if (visitorType === 'delivery') {
                 payload = {
                     type: "Delivery",
                     vendor: formData.vendor,
                     date: formData.date,
-                    name: formData.name,
+                    name: formData.name, // Now using top-level name for delivery person
                     phone: formData.phone,
                     time: formData.time
                 }
@@ -121,7 +175,7 @@ export default function InviteVisitorPage() {
 
             const res = await api.inviteVisitor(payload)
             if (res.success) {
-                setSuccessData({ code: res.code, message: res.message })
+                setSuccessData({ code: res.code, qrToken: res.qrToken, message: res.message })
             }
         } catch (error) {
             console.error(error)
@@ -131,33 +185,35 @@ export default function InviteVisitorPage() {
         }
     }
 
-    // Success View
+    // Success View -> Show Card
     if (successData) {
         return (
-            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
-                <div className="h-20 w-20 bg-green-500/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in">
-                    <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground mb-2">{successData.message}</h2>
-                {successData.code && (
-                    <div className="my-6 p-4 bg-muted/50 rounded-2xl border-2 border-dashed border-primary/20">
-                        <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-1">Pass Code</p>
-                        <p className="text-4xl font-mono font-bold text-primary tracking-wider">{successData.code}</p>
+            <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+                {visitorGroup ? (
+                    <VisitorGroupCard
+                        visitors={visitorGroup.visitors}
+                        visitStart={visitorGroup.visitStart}
+                        visitEnd={visitorGroup.visitEnd}
+                        hostName={visitorGroup.hostName}
+                        unitNumber={visitorGroup.unitNumber}
+                        blockTower={visitorGroup.blockTower}
+                        communityName={visitorGroup.communityName}
+                        qrToken={successData.qrToken!}
+                        onClose={() => {
+                            setSuccessData(null)
+                            setVisitorGroup(null)
+                            setFormData(prev => ({ ...prev, guests: [{ id: 1, name: "", phone: "", email: "", photo: "" }], name: "", phone: "" })) // Reset basics
+                            router.back()
+                        }}
+                    />
+                ) : (
+                    <div className="text-center text-white">
+                        <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
+                        <p>Generating Pass...</p>
+                        {/* Fallback code display if fetch fails or takes time */}
+                        {successData.code && <p className="text-xs mt-2 text-white/50">Code: {successData.code}</p>}
                     </div>
                 )}
-                <p className="text-muted-foreground max-w-xs mx-auto mb-8">
-                    {visitorType === 'guest' ? "Code has been sent to the guest." : "Security has been notified."}
-                </p>
-                <div className="flex gap-4 w-full max-w-xs">
-                    <button onClick={() => router.back()} className="flex-1 py-3.5 rounded-xl border border-border font-semibold text-foreground hover:bg-accent transition-colors">
-                        Close
-                    </button>
-                    {visitorType === 'guest' && (
-                        <button className="flex-1 py-3.5 rounded-xl bg-primary text-white font-semibold flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors">
-                            <Share2 size={18} /> Share
-                        </button>
-                    )}
-                </div>
             </div>
         )
     }
@@ -181,9 +237,9 @@ export default function InviteVisitorPage() {
                     <div className="space-y-3">
                         <label className="text-sm font-semibold text-muted-foreground">Entry Type</label>
                         <div className="grid grid-cols-3 gap-3">
-                            <TypeCard id="guest" icon={User} label="Guest" active={visitorType === "guest"} onClick={() => setVisitorType("guest")} />
-                            <TypeCard id="delivery" icon={Truck} label="Delivery" active={visitorType === "delivery"} onClick={() => setVisitorType("delivery")} />
-                            <TypeCard id="cab" icon={Car} label="Cab" active={visitorType === "cab"} onClick={() => setVisitorType("cab")} />
+                            <TypeCard icon={User} label="Guest" active={visitorType === "guest"} onClick={() => setVisitorType("guest")} />
+                            <TypeCard icon={Truck} label="Delivery" active={visitorType === "delivery"} onClick={() => setVisitorType("delivery")} />
+                            <TypeCard icon={Car} label="Cab" active={visitorType === "cab"} onClick={() => setVisitorType("cab")} />
                         </div>
                     </div>
 
@@ -193,50 +249,97 @@ export default function InviteVisitorPage() {
                         {/* --- GUEST FORM --- */}
                         {visitorType === 'guest' && (
                             <>
-                                {/* Photo Upload */}
-                                <div className="flex justify-center mb-6">
-                                    <div className="relative group">
-                                        <div className={cn(
-                                            "w-24 h-24 rounded-full flex items-center justify-center border-2 border-dashed transition-all overflow-hidden",
-                                            formData.photo ? "border-primary bg-card" : "border-border bg-muted/50 group-hover:bg-muted"
-                                        )}>
-                                            {formData.photo ? (
-                                                <img src={formData.photo} alt="Guest" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Camera className="text-muted-foreground group-hover:text-primary transition-colors" size={32} />
+                                <div className="space-y-6">
+                                    {formData.guests.map((guest, index) => (
+                                        <div key={guest.id || index} className="p-4 bg-muted/30 rounded-2xl border border-border relative">
+                                            {index > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeGuest(index)}
+                                                    className="absolute top-2 right-2 text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
+                                                >
+                                                    <div className="h-5 w-5 border-2 border-red-500 rounded-full flex items-center justify-center font-bold text-xs" >✕</div>
+                                                </button>
                                             )}
+
+                                            <div className="mb-4">
+                                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Guest {index + 1}</span>
+                                            </div>
+
+                                            {/* Photo Upload */}
+                                            <div className="flex justify-center mb-6">
+                                                <div className="relative group">
+                                                    <div className={cn(
+                                                        "w-20 h-20 rounded-full flex items-center justify-center border-2 border-dashed transition-all overflow-hidden",
+                                                        guest.photo ? "border-primary bg-card" : "border-border bg-muted/50 group-hover:bg-muted"
+                                                    )}>
+                                                        {guest.photo ? (
+                                                            <img src={guest.photo} alt="Guest" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <Camera className="text-muted-foreground group-hover:text-primary transition-colors" size={24} />
+                                                        )}
+                                                    </div>
+                                                    <div className="absolute bottom-0 right-0 bg-primary text-white p-1.5 rounded-full shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                                                        <Camera size={12} />
+                                                    </div>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => handlePhotoUpload(e, index)}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <Input
+                                                    label="Guest Name"
+                                                    value={guest.name}
+                                                    onChange={(e: ChangeEvent<HTMLInputElement>) => handleGuestChange(index, "name", e.target.value)}
+                                                    required
+                                                    placeholder="Enter guest name"
+                                                />
+
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Contact</label>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="relative">
+                                                            <Phone className="absolute left-3 top-3.5 text-muted-foreground" size={18} />
+                                                            <input
+                                                                type="tel"
+                                                                value={guest.phone}
+                                                                onChange={(e) => handleGuestChange(index, "phone", e.target.value)}
+                                                                placeholder="Phone Number"
+                                                                className="w-full h-12 pl-10 pr-4 rounded-xl bg-muted border border-border focus:bg-card focus:border-primary/20 outline-none text-foreground placeholder:text-muted-foreground transition-all"
+                                                            />
+                                                        </div>
+                                                        <div className="relative">
+                                                            <Mail className="absolute left-3 top-3.5 text-muted-foreground" size={18} />
+                                                            <input
+                                                                type="email"
+                                                                value={guest.email}
+                                                                onChange={(e) => handleGuestChange(index, "email", e.target.value)}
+                                                                placeholder="Email (Optional)"
+                                                                className="w-full h-12 pl-10 pr-4 rounded-xl bg-muted border border-border focus:bg-card focus:border-primary/20 outline-none text-foreground placeholder:text-muted-foreground transition-all"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
-                                            <Camera size={14} />
-                                        </div>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handlePhotoUpload}
-                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                        />
-                                    </div>
-                                    <p className="text-xs text-center text-muted-foreground mt-2 absolute -bottom-6">Add Photo</p>
+                                    ))}
+
+                                    <button
+                                        type="button"
+                                        onClick={addGuest}
+                                        className="w-full py-3 border-2 border-dashed border-primary/30 rounded-xl text-primary font-semibold hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <div className="h-5 w-5 bg-primary text-white rounded-full flex items-center justify-center font-bold text-sm">+</div>
+                                        Add Another Guest
+                                    </button>
                                 </div>
 
-                                <Input label="Guest Name" name="name" value={formData.name} onChange={handleChange} required placeholder="Enter guest name" />
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Contact (One Required)</label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="relative">
-                                            <Phone className="absolute left-3 top-3.5 text-muted-foreground" size={18} />
-                                            <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone Number" className="w-full h-12 pl-10 pr-4 rounded-xl bg-muted border border-border focus:bg-card focus:border-primary/20 outline-none text-foreground placeholder:text-muted-foreground transition-all" />
-                                        </div>
-                                        <div className="relative">
-                                            <Mail className="absolute left-3 top-3.5 text-muted-foreground" size={18} />
-                                            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email Address" className="w-full h-12 pl-10 pr-4 rounded-xl bg-muted border border-border focus:bg-card focus:border-primary/20 outline-none text-foreground placeholder:text-muted-foreground transition-all" />
-                                        </div>
-                                    </div>
-                                    {(!formData.phone && !formData.email) && <p className="text-xs text-orange-500">* Please provide either phone or email</p>}
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/50">
                                     <Input label="Date" name="date" type="date" value={formData.date} onChange={handleChange} required icon={Calendar} />
                                     <Input label="Time" name="time" type="time" value={formData.time} onChange={handleChange} required icon={Clock} />
                                 </div>
@@ -303,7 +406,7 @@ export default function InviteVisitorPage() {
 
 // --- Components ---
 
-function TypeCard({ id, icon: Icon, label, active, onClick }: { id: string, icon: any, label: string, active: boolean, onClick: () => void }) {
+function TypeCard({ icon: Icon, label, active, onClick }: { icon: ComponentType<{ size?: number; className?: string }>, label: string, active: boolean, onClick: () => void }) {
     return (
         <button
             type="button"
@@ -330,7 +433,16 @@ function TypeCard({ id, icon: Icon, label, active, onClick }: { id: string, icon
     )
 }
 
-function Input({ label, icon: Icon, type, value, onChange, className, ...props }: any) {
+type LabeledInputProps = {
+    label: string
+    icon?: ComponentType<{ size?: number; className?: string }>
+    type: string
+    value: string
+    onChange: (e: ChangeEvent<HTMLInputElement>) => void
+    className?: string
+} & Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "value" | "onChange">
+
+function Input({ label, icon: Icon, type, value, onChange, className, ...props }: LabeledInputProps) {
     const dateRef = useRef<HTMLInputElement>(null)
     // Custom Date Logic
     if (type === 'date') {

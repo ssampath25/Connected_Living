@@ -1,10 +1,12 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Clock, MapPin, CheckCircle2, AlertTriangle, User, MessageSquare, Phone, BrainCircuit } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, AlertTriangle, MessageSquare, Phone, BrainCircuit } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { api, getIconForType, ServiceRequestItem, StaffItem } from "@/lib/api"
+import { api, ServiceRequestItem, StaffItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ServiceRequestDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,13 +56,6 @@ export default function ServiceRequestDetailsPage({ params }: { params: Promise<
             </div>
         )
     }
-
-    const Icon = getIconForType(request.category)
-
-    let statusColor = "bg-gray-100 text-gray-600"
-    if (request.status === "In Progress") statusColor = "bg-blue-100 text-blue-700"
-    if (request.status === "Open") statusColor = "bg-orange-100 text-orange-700"
-    if (request.status === "Resolved") statusColor = "bg-green-100 text-green-700"
 
     return (
         <div className="min-h-screen bg-background pb-24 lg:pb-8 transition-colors">
@@ -132,7 +127,7 @@ export default function ServiceRequestDetailsPage({ params }: { params: Promise<
                             <h3 className="font-bold text-violet-500 text-sm uppercase tracking-wider">AI Assistant Analysis</h3>
                         </div>
                         <p className="text-sm text-foreground/80 leading-relaxed italic">
-                            "Based on the description and photo provided, this appears to be a structural maintenance requirement. I have categorized this as 'Others' and flagged it for manual review by the building engineer."
+                            &quot;Based on the description and photo provided, this appears to be a structural maintenance requirement. I have categorized this as &apos;Others&apos; and flagged it for manual review by the building engineer.&quot;
                         </p>
                     </div>
                 )}

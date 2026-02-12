@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Video, ChevronLeft, Maximize2, Grid, List, Play, Pause } from "lucide-react"
+import { Video, ChevronLeft, Maximize2, Grid, List, Play } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
@@ -25,7 +25,6 @@ const MOCK_CAMERAS: CameraFeed[] = [
 export default function SecurityCCTVPage() {
     const [cameras] = useState<CameraFeed[]>(MOCK_CAMERAS)
     const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-    const [selectedCamera, setSelectedCamera] = useState<string | null>(null)
 
     return (
         <div className="flex flex-col min-h-screen bg-background pb-24 lg:pb-0">

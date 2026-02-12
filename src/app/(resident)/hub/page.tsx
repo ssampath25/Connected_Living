@@ -105,7 +105,7 @@ export default function SmartHubPage() {
                     <div>
                         <p className="text-primary-foreground/70 text-xs font-semibold uppercase tracking-wider">Energy Usage</p>
                         <h3 className="text-2xl font-bold mt-1">24.5 kWh</h3>
-                        <p className="text-xs text-primary-foreground/70 mt-1">Today's consumption</p>
+                        <p className="text-xs text-primary-foreground/70 mt-1">Today&apos;s consumption</p>
                     </div>
                     <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                         <span className="text-lg font-bold">⚡</span>

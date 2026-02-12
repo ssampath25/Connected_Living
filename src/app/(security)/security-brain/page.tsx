@@ -1,7 +1,9 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useRef, useEffect } from "react"
-import { Mic, BrainCircuit, Send, Sparkles, StopCircle, CornerDownLeft, Image as ImageIcon, X } from "lucide-react"
+import { Mic, BrainCircuit, Send, StopCircle, Image as ImageIcon, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function SecurityBrainPage() {

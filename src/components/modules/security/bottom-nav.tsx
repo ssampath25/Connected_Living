@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, ScanLine, BrainCircuit, AlertTriangle, MoreHorizontal } from "lucide-react"
+import type { ComponentType } from "react"
 import { cn } from "@/lib/utils"
 // import { useUI } from "@/components/providers/ui-provider"
 
@@ -10,7 +11,7 @@ export function SecurityBottomNav() {
     const pathname = usePathname()
     // const { isInteractivityDisabled } = useUI()
 
-    const links = [
+    const links: Array<{ href: string; label: string; icon: ComponentType<{ size?: number; className?: string }>; primary?: boolean }> = [
         {
             href: "/gate",
             label: "Home",
@@ -47,7 +48,7 @@ export function SecurityBottomNav() {
             <div className="flex h-20 max-w-lg mx-auto relative">
                 {links.map((link) => {
                     const Icon = link.icon
-                    const isPrimary = (link as any).primary
+                    const isPrimary = Boolean(link.primary)
                     const isActive = pathname === link.href
 
                     return (

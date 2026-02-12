@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ChevronDown, ChevronUp, Mail, HelpCircle, Phone, MessageSquare } from "lucide-react"
+import { ArrowLeft, ChevronDown, Mail, HelpCircle, Phone, MessageSquare } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Mock FAQ Data

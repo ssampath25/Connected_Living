@@ -2,10 +2,17 @@
 
 import { useEffect, useState, use } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Clock, MapPin, QrCode, AlertTriangle, Share2, Download } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, MapPin, QrCode, AlertTriangle, Share2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { api, getIconForType, BookingItem } from "@/lib/api"
 import { Skeleton } from "@/components/ui/skeleton"
+
+function AmenityIcon({ amenityId }: { amenityId: string }) {
+    /* eslint-disable react-hooks/static-components */
+    const Icon = getIconForType(amenityId) || Calendar
+    return <Icon size={32} />
+    /* eslint-enable react-hooks/static-components */
+}
 
 export default function BookingDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter()
@@ -42,10 +49,6 @@ export default function BookingDetailsPage({ params }: { params: Promise<{ id: s
         )
     }
 
-    // Get icon based on amenity ID/Type mapping logic
-    const iconType = booking.amenityId as any
-    const Icon = getIconForType(iconType) || Calendar
-
     return (
         <div className="min-h-screen bg-primary pb-24 relative overflow-hidden transition-colors">
             {/* Background Pattern */}
@@ -69,7 +72,7 @@ export default function BookingDetailsPage({ params }: { params: Promise<{ id: s
                     <div className="p-8 pb-10 relative">
                         <div className="flex justify-between items-start mb-6">
                             <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary transition-colors">
-                                <Icon size={32} />
+                                <AmenityIcon amenityId={booking.amenityId} />
                             </div>
                             <span className={cn(
                                 "px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-colors",
