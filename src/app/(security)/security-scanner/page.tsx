@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ScanLine, CheckCircle, XCircle, Search, User, Loader2, QrCode, Smartphone, Camera, RefreshCcw, ArrowLeft } from "lucide-react"
-import { api, SecurityVisitorEntry } from "@/lib/api"
+import { api, SecurityVisitorEntry, SecurityStaffScanEntry } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Scanner } from '@yudiel/react-qr-scanner';
@@ -14,6 +14,7 @@ export default function SecurityScannerPage() {
     const [code, setCode] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [scannedVisitor, setScannedVisitor] = useState<SecurityVisitorEntry | null>(null)
+    const [scannedStaff, setScannedStaff] = useState<SecurityStaffScanEntry | null>(null)
     const [scanStatus, setScanStatus] = useState<"idle" | "success" | "error">("idle")
     const [errorMessage, setErrorMessage] = useState("")
     const [isCameraActive, setIsCameraActive] = useState(true)
@@ -27,9 +28,36 @@ export default function SecurityScannerPage() {
         setIsLoading(true)
 
         try {
-            const visitor = await api.security.scanVisitor({ qrToken: data })
+            const response = await api.security.scanAny({ code: data })
+            if (response.type === 'STAFF') {
+                const staff = response.staff
+                setScannedStaff(staff)
+                setScannedVisitor(null)
+                setScanStatus("success")
+                toast.success(`Staff ${staff.staffName || "Checked"}`, {
+                    description: staff.status === "IN" ? "Checked In" : "Checked Out",
+                })
+                return
+            }
+
+            const log = response.log
+            const visitor: SecurityVisitorEntry = {
+                id: log.id,
+                visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                unitNumber: log.group?.unit?.unitNumber || "",
+                status: log.status === 'ENTERED' ? 'INSIDE' : log.status,
+                type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                entryTime: log.entryAt,
+                exitTime: log.exitAt,
+                mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                photoUrl: log.photoUrl,
+                gateId: log.gateId,
+                approvalType: 'Pre-approved',
+                qrCode: data,
+            }
 
             setScannedVisitor(visitor)
+            setScannedStaff(null)
             setScanStatus("success")
 
             if (visitor.status === 'INSIDE') {
@@ -55,10 +83,35 @@ export default function SecurityScannerPage() {
             setIsLoading(true)
             setScanStatus("idle")
             setErrorMessage("")
-            // 4-digit manual code uses scan-code endpoint
-            api.security.scanVisitorCode({ code })
-                .then((visitor) => {
+            api.security.scanAny({ code })
+                .then((result: any) => {
+                    if (result.type === 'STAFF') {
+                        const staff = result.staff as SecurityStaffScanEntry
+                        setScannedStaff(staff)
+                        setScannedVisitor(null)
+                        setScanStatus("success")
+                        toast.success(`Staff ${staff.staffName || "Checked"}`, {
+                            description: staff.status === "IN" ? "Checked In" : "Checked Out",
+                        })
+                        return
+                    }
+                    const log = result.log
+                    const visitor: SecurityVisitorEntry = {
+                        id: log.id,
+                        visitorName: log.group?.visitors?.[0]?.name || "Unknown",
+                        unitNumber: log.group?.unit?.unitNumber || "",
+                        status: log.status === 'ENTERED' ? 'INSIDE' : log.status,
+                        type: log.group?.type === 'DELIVERY' ? 'DELIVERY' : 'GUEST',
+                        entryTime: log.entryAt,
+                        exitTime: log.exitAt,
+                        mobileNumber: log.group?.visitors?.[0]?.mobileNumber,
+                        photoUrl: log.photoUrl,
+                        gateId: log.gateId,
+                        approvalType: 'Pre-approved',
+                        qrCode: code,
+                    }
                     setScannedVisitor(visitor)
+                    setScannedStaff(null)
                     setScanStatus("success")
                     if (visitor.status === 'INSIDE') {
                         toast.success(`Welcome ${visitor.visitorName}`, { description: `Unit ${visitor.unitNumber} - Checked In` })
@@ -81,6 +134,7 @@ export default function SecurityScannerPage() {
     const resetScan = () => {
         setScanStatus("idle")
         setScannedVisitor(null)
+        setScannedStaff(null)
         setErrorMessage("")
         setIsLoading(false)
         setCode("")
@@ -105,7 +159,7 @@ export default function SecurityScannerPage() {
                     <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
                         <h1 className="text-sm font-bold flex items-center gap-2">
                             <QrCode size={16} className="text-green-400" />
-                            QR Scanner
+                            Scanner
                         </h1>
                     </div>
                 </div>
@@ -149,7 +203,7 @@ export default function SecurityScannerPage() {
                             </div>
 
                             <p className="absolute top-3/4 left-0 right-0 text-center text-white/70 text-sm font-medium animate-pulse mt-8">
-                                Point camera at visitor code
+                                Point camera at code
                             </p>
                         </div>
                     </div>
@@ -197,6 +251,26 @@ export default function SecurityScannerPage() {
                                                 Reason: {scannedVisitor.deniedReason || "Access denied"}
                                             </div>
                                         )}
+                                    </div>
+                                </>
+                            )}
+
+                            {scanStatus === "success" && scannedStaff && (
+                                <>
+                                    <h2 className="text-xl font-bold">{scannedStaff.status === "IN" ? "Check-In" : "Check-Out"}</h2>
+                                    <div className="flex flex-col gap-1 w-full bg-black/20 rounded-xl p-4">
+                                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-bold">Staff</p>
+                                        <p className="text-lg font-semibold">{scannedStaff.staffName || scannedStaff.staffId}</p>
+                                        <div className="flex justify-between mt-2 pt-2 border-t border-white/5">
+                                            <div className="text-left">
+                                                <p className="text-xs text-muted-foreground">Unit</p>
+                                                <p className="font-mono">{scannedStaff.unitNumber || "-"}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Status</p>
+                                                <p className="font-medium">{scannedStaff.status}</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </>
                             )}
@@ -256,12 +330,12 @@ export default function SecurityScannerPage() {
                         <Input
                             ref={manualInputRef}
                             type="text"
-                            inputMode="numeric"
-                            placeholder="Visitor Pass Code (e.g. 4821)"
+                            inputMode="text"
+                            placeholder="Visitor Pass Code or Staff QR"
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
                             className="pl-10 h-12 text-lg font-mono tracking-widest bg-muted border-transparent focus:bg-background"
-                            maxLength={6}
+                            maxLength={64}
                         />
                     </div>
 
@@ -269,7 +343,9 @@ export default function SecurityScannerPage() {
                     <div
                         className={cn(
                             "grid transition-all duration-300 ease-in-out",
-                            code.length >= 4 ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"
+                            code.length >= 4
+                                ? "grid-rows-[1fr] opacity-100"
+                                : "grid-rows-[0fr] opacity-0 pointer-events-none"
                         )}
                     >
                         <div className="overflow-hidden min-h-0">

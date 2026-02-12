@@ -370,6 +370,24 @@ export interface SecurityVisitorEntry {
     deniedReason?: string;
 }
 
+export interface SecurityStaffScanEntry {
+    id: string;
+    staffId: string;
+    staffName?: string;
+    unitNumber?: string;
+    guardId: string;
+    gateId: string;
+    checkInAt?: string;
+    checkOutAt?: string;
+    status: 'IN' | 'OUT';
+    outsideSchedule?: boolean;
+    createdAt: string;
+}
+
+export type SecurityScanResponse =
+    | { type: 'VISITOR'; log: any; allowed: boolean; checkedOut: boolean }
+    | { type: 'STAFF'; staff: SecurityStaffScanEntry };
+
 
 // --- Security ---
 export interface SecurityLoginRequest {

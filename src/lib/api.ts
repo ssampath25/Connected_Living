@@ -43,6 +43,8 @@ import type {
     CreateWalkInRequest,
     WalkInEntryRequest,
     SecurityVisitorEntry,
+    SecurityStaffScanEntry,
+    SecurityScanResponse,
     SOSLogItem,
 } from "./api-types"
 
@@ -1425,6 +1427,15 @@ export const api = {
                 qrCode: data.code,
                 deniedReason,
             } as SecurityVisitorEntry
+        },
+
+        scanStaff: async (data: { qrCodeId: string; gateId?: string; direction?: "IN" | "OUT" }): Promise<SecurityStaffScanEntry> => {
+            const response = await httpClient.post<any>("/security/staff/scan", data)
+            return response as SecurityStaffScanEntry
+        },
+
+        scanAny: async (data: { code: string; gateId?: string; photoUrl?: string }): Promise<SecurityScanResponse> => {
+            return httpClient.post<SecurityScanResponse>("/security/scan", data)
         },
 
         createWalkIn: async (data: CreateWalkInRequest): Promise<{ requestId: string }> => {
